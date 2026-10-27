@@ -13,6 +13,3 @@ Edit `index.html` (the `DATA` block at the top of the script) and push to `main`
 
 Sideloading on a Sony Google TV: enable *Unknown sources* for Downloader by AFTVnews, then fetch
 `https://github.com/azarzycki/tv-trivia/releases/latest/download/app-release.apk`.
-
-## One-time setup after first push
-Settings → Pages → Source: **GitHub Actions**.
