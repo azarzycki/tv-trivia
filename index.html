@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toronto Trivia Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  /* Layout: a single dark game-show screen; 5x5 board up top, scoreboard + export tray below. Single-theme by choice. */
+  :root {
+    --bg: #0b1b3a;
+    --board: #122a5c;
+    --tile: #1b3a7a;
+    --tile-used: #0f1f45;
+    --fg: #f3f1ea;
+    --muted: #9fb0d1;
+    --gold: #f2c14e;
+    --accent: #e0442f;
+    --font-display: "Oswald", "Arial Narrow", Impact, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 40px;
+    line-height: 1.45;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 22px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.8rem); letter-spacing: .02em; text-transform: uppercase; margin: 0; color: var(--gold); text-wrap: balance; }
+  .sub { color: var(--muted); margin: 0; font-size: .95rem; }
+
+  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: var(--board); padding: 6px; border: 3px solid var(--gold); }
+  .cat { background: var(--tile); color: var(--fg); font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; font-size: clamp(.62rem, 1.6vw, 1rem); text-align: center; padding: 10px 6px; display: flex; align-items: center; justify-content: center; min-height: 64px; text-wrap: balance; }
+  .tile { background: var(--tile); border: 0; color: var(--gold); font-family: var(--font-display); font-weight: 700; font-size: clamp(1.1rem, 4vw, 2.4rem); min-height: 64px; cursor: pointer; font-variant-numeric: tabular-nums; transition: background .15s; }
+  .tile:hover, .tile:focus-visible { background: #2a4d96; outline: 2px solid var(--gold); outline-offset: -2px; }
+  .tile.used { background: var(--tile-used); color: transparent; cursor: default; }
+  .tile.used:hover { background: var(--tile-used); outline: none; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; }
+  .panel { background: var(--board); padding: 14px 16px; flex: 1 1 280px; min-width: 0; }
+  .panel h2 { font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: .95rem; color: var(--muted); margin: 0 0 10px; }
+  .teams { display: grid; gap: 8px; }
+  .team { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; }
+  .team input { background: var(--bg); color: var(--fg); border: 1px solid #2a4d96; padding: 6px 8px; font: inherit; min-width: 0; }
+  .score { font-family: var(--font-display); font-size: 1.4rem; color: var(--gold); min-width: 4.5ch; text-align: right; font-variant-numeric: tabular-nums; }
+  button.small { background: var(--tile); color: var(--fg); border: 1px solid #2a4d96; padding: 6px 10px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.small:hover, button.small:focus-visible { background: #2a4d96; outline: none; }
+  button.small.neg { color: #ffb4a8; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+  textarea { width: 100%; box-sizing: border-box; height: 150px; background: var(--bg); color: var(--fg); border: 1px solid #2a4d96; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; padding: 8px; margin-top: 8px; resize: vertical; }
+
+  /* clue overlay */
+  .overlay { position: fixed; inset: 0; background: rgba(5,12,30,.92); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-left, 0px)); z-index: 20; }
+  .clue { background: var(--tile); border: 3px solid var(--gold); max-width: 760px; width: 100%; padding: 28px 24px; display: grid; gap: 18px; text-align: center; }
+  .clue .meta { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-size: .9rem; }
+  .clue .q { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.3rem, 3.2vw, 2rem); line-height: 1.3; text-wrap: balance; }
+  .clue .a { font-family: var(--font-display); font-weight: 700; color: var(--gold); font-size: clamp(1.3rem, 3.2vw, 2rem); }
+  .clue .a[hidden] { display: none; }
+  .award { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .award button { background: var(--bg); border: 1px solid var(--gold); color: var(--gold); }
+  .award button.neg { border-color: var(--accent); color: #ffb4a8; }
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--gold); color: #1a1a1a; padding: 8px 16px; font-weight: 600; z-index: 30; }
+  @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+  @media (max-width: 480px) { .team { grid-template-columns: 1fr auto; } .team .score { grid-column: 2; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Toronto Trivia Board</h1>
+    <p class="sub">Five categories, five clues each, easy to hard. Click a value to play. Answers are phrased in the question form.</p>
+  </header>
+
+  <div class="board" id="board"></div>
+
+  <div class="row">
+    <section class="panel">
+      <h2>Scoreboard</h2>
+      <div class="teams" id="teams"></div>
+      <div class="actions">
+        <button class="small" id="addTeam">Add team</button>
+        <button class="small" id="removeTeam">Remove last team</button>
+        <button class="small" id="resetBoard">Reset board</button>
+      </div>
+      <p class="hint">Up to four teams. Inside a clue, give the points to the team that answered correctly, or deduct them for a wrong answer; the running totals update here.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Export the question set</h2>
+      <div class="actions">
+        <button class="small" id="exCsv">Copy as CSV</button>
+        <button class="small" id="exJson">Copy as JSON</button>
+        <button class="small" id="exText">Copy as plain text</button>
+      </div>
+      <textarea id="exOut" readonly aria-label="Exported question set"></textarea>
+      <p class="hint">Copy buttons put the full set on your clipboard; the box above shows the same text for manual copying.</p>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="clue" role="dialog" aria-modal="true">
+    <div class="meta" id="cMeta"></div>
+    <div class="q" id="cQ"></div>
+    <div class="a" id="cA" hidden></div>
+    <div class="award" id="cAward"></div>
+    <div class="actions" style="justify-content:center">
+      <button class="small" id="cReveal">Reveal answer</button>
+      <button class="small" id="cClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = [
+  { category: "Origins & History", clues: [
+    { value: 100, q: "Toronto was incorporated as a city in 1834, dropping this name it had carried since 1793.", a: "What is York?" },
+    { value: 200, q: "This lieutenant governor of Upper Canada founded the town of York in 1793.", a: "Who is John Graves Simcoe?" },
+    { value: 300, q: "Toronto's first mayor, he later led the Upper Canada Rebellion of 1837.", a: "Who is William Lyon Mackenzie?" },
+    { value: 400, q: "American forces captured and burned Fort York in the Battle of York in April of this year.", a: "What is 1813?" },
+    { value: 500, q: "The name Toronto is widely traced to this Mohawk word, usually translated as \"where there are trees standing in the water\".", a: "What is tkaronto?" }
+  ]},
+  { category: "Landmarks & Skyline", clues: [
+    { value: 100, q: "Completed in 1976, this 553-metre tower was the world's tallest free-standing structure for more than 30 years.", a: "What is the CN Tower?" },
+    { value: 200, q: "Opened in 1989 as the SkyDome, this stadium had the world's first fully retractable motorized roof.", a: "What is the Rogers Centre?" },
+    { value: 300, q: "Nicknamed \"the Ex\", this annual fair at Exhibition Place dates back to 1879.", a: "What is the Canadian National Exhibition?" },
+    { value: 400, q: "Daniel Libeskind's crystal-shaped addition to this museum on Bloor Street opened in 2007.", a: "What is the Royal Ontario Museum?" },
+    { value: 500, q: "Casa Loma was built for this financier, who lost his fortune and the castle in the 1920s.", a: "Who is Sir Henry Pellatt?" }
+  ]},
+  { category: "The City Today", clues: [
+    { value: 100, q: "Toronto is the capital city of this province.", a: "What is Ontario?" },
+    { value: 200, q: "Toronto's subways, streetcars and buses are run by this agency, known by three letters.", a: "What is the TTC (Toronto Transit Commission)?" },
+    { value: 300, q: "Toronto's main international airport is named after this former prime minister.", a: "Who is Lester B. Pearson?" },
+    { value: 400, q: "In 1998 Toronto amalgamated with Scarborough, North York, Etobicoke, York and this smaller borough.", a: "What is East York?" },
+    { value: 500, q: "The twin curved towers of Toronto City Hall, opened in 1965, were designed by this Finnish architect.", a: "Who is Viljo Revell?" }
+  ]},
+  { category: "Sports", clues: [
+    { value: 100, q: "This team is the only NBA franchise based in Canada.", a: "Who are the Toronto Raptors?" },
+    { value: 200, q: "The Toronto Blue Jays won back-to-back World Series titles in these two consecutive years.", a: "What are 1992 and 1993?" },
+    { value: 300, q: "Toronto's CFL team, which has won the Grey Cup more times than any other franchise.", a: "Who are the Toronto Argonauts?" },
+    { value: 400, q: "This Toronto-born rapper, founder of the OVO label, serves as a global ambassador for the Raptors.", a: "Who is Drake?" },
+    { value: 500, q: "Before becoming the St. Patricks and then the Maple Leafs, Toronto's NHL club played under this name in the league's first season, 1917-18.", a: "What are the Toronto Arenas?" }
+  ]},
+  { category: "Screen & Stage", clues: [
+    { value: 100, q: "Along with Vancouver, Toronto's film and TV industry earned it this Hollywood-inspired nickname.", a: "What is Hollywood North?" },
+    { value: 200, q: "Held every September, this festival hands out the People's Choice Award.", a: "What is the Toronto International Film Festival (TIFF)?" },
+    { value: 300, q: "This CBC sitcom followed a Korean-Canadian family running a convenience store in Toronto.", a: "What is Kim's Convenience?" },
+    { value: 400, q: "This Toronto-set teen drama franchise includes \"Junior High\" and \"The Next Generation\" and launched a future rap superstar.", a: "What is Degrassi?" },
+    { value: 500, q: "Opened in 1894, Massey Hall was a gift to the city from this farm-machinery magnate.", a: "Who is Hart Massey?" }
+  ]}
+];
+
+const board = document.getElementById('board');
+const teamsEl = document.getElementById('teams');
+let used = new Set();
+let teams = [1,2,3,4].map(n => ({ name: 'Team ' + n, score: 0 }));
+
+try {
+  const saved = JSON.parse(localStorage.getItem('toronto-jeopardy') || 'null');
+  if (saved && Array.isArray(saved.used) && Array.isArray(saved.teams)) { used = new Set(saved.used); teams = saved.teams; }
+} catch (e) {}
+
+function save() { try { localStorage.setItem('toronto-jeopardy', JSON.stringify({ used: [...used], teams })); } catch (e) {} }
+
+function renderBoard() {
+  board.innerHTML = '';
+  DATA.forEach(c => { const d = document.createElement('div'); d.className = 'cat'; d.textContent = c.category; board.appendChild(d); });
+  for (let r = 0; r < 5; r++) {
+    DATA.forEach((c, ci) => {
+      const key = ci + '-' + r;
+      const b = document.createElement('button');
+      b.className = 'tile' + (used.has(key) ? ' used' : '');
+      b.textContent = '$' + c.clues[r].value;
+      b.setAttribute('aria-label', c.category + ' for $' + c.clues[r].value);
+      b.disabled = used.has(key);
+      b.addEventListener('click', () => openClue(ci, r));
+      board.appendChild(b);
+    });
+  }
+}
+
+function renderTeams() {
+  teamsEl.innerHTML = '';
+  teams.forEach((t, i) => {
+    const row = document.createElement('div'); row.className = 'team';
+    const inp = document.createElement('input'); inp.value = t.name; inp.id = 'team-name-' + i; inp.setAttribute('aria-label', 'Team name');
+    inp.addEventListener('input', () => { t.name = inp.value; save(); });
+    const sc = document.createElement('div'); sc.className = 'score'; sc.textContent = t.score;
+    const plus = document.createElement('button'); plus.className = 'small'; plus.textContent = '+100';
+    plus.addEventListener('click', () => { t.score += 100; renderTeams(); save(); });
+    const minus = document.createElement('button'); minus.className = 'small neg'; minus.textContent = '−100';
+    minus.addEventListener('click', () => { t.score -= 100; renderTeams(); save(); });
+    row.append(inp, sc, plus, minus);
+    teamsEl.appendChild(row);
+  });
+}
+
+const overlay = document.getElementById('overlay');
+let current = null;
+function openClue(ci, r) {
+  current = { ci, r };
+  const clue = DATA[ci].clues[r];
+  document.getElementById('cMeta').textContent = DATA[ci].category + ' · $' + clue.value;
+  document.getElementById('cQ').textContent = clue.q;
+  const a = document.getElementById('cA'); a.textContent = clue.a; a.hidden = true;
+  const award = document.getElementById('cAward'); award.innerHTML = '';
+  teams.forEach(t => {
+    const win = document.createElement('button'); win.className = 'small'; win.textContent = t.name + ' +' + clue.value;
+    win.addEventListener('click', () => { t.score += clue.value; finish(); });
+    const lose = document.createElement('button'); lose.className = 'small neg'; lose.textContent = t.name + ' −' + clue.value;
+    lose.addEventListener('click', () => { t.score -= clue.value; renderTeams(); save(); });
+    award.append(win, lose);
+  });
+  overlay.hidden = false;
+  document.getElementById('cReveal').focus();
+}
+function finish() {
+  if (current) used.add(current.ci + '-' + current.r);
+  overlay.hidden = true; current = null;
+  renderBoard(); renderTeams(); save();
+}
+document.getElementById('cReveal').addEventListener('click', () => { document.getElementById('cA').hidden = false; });
+document.getElementById('cClose').addEventListener('click', finish);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !overlay.hidden) finish(); });
+
+document.getElementById('addTeam').addEventListener('click', () => { if (teams.length < 4) { teams.push({ name: 'Team ' + (teams.length + 1), score: 0 }); renderTeams(); save(); } });
+document.getElementById('removeTeam').addEventListener('click', () => { if (teams.length > 1) { teams.pop(); renderTeams(); save(); } });
+document.getElementById('resetBoard').addEventListener('click', () => { used = new Set(); teams.forEach(t => t.score = 0); renderBoard(); renderTeams(); save(); });
+
+/* export */
+function csvCell(s) { s = String(s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function toCsv() {
+  const rows = [['Category', 'Difficulty', 'Value', 'Clue', 'Answer']];
+  DATA.forEach(c => c.clues.forEach((k, i) => rows.push([c.category, i + 1, k.value, k.q, k.a])));
+  return rows.map(r => r.map(csvCell).join(',')).join('\n');
+}
+function toJson() { return JSON.stringify(DATA, null, 2); }
+function toText() {
+  return DATA.map(c => c.category.toUpperCase() + '\n' + c.clues.map(k => '  $' + k.value + ' — ' + k.q + '\n       ' + k.a).join('\n')).join('\n\n');
+}
+function showToast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
+function exportAs(fn, label) {
+  const out = document.getElementById('exOut'); const text = fn(); out.value = text;
+  const fallback = () => { out.focus(); out.select(); showToast(label + ' shown below; select and copy'); };
+  try { navigator.clipboard.writeText(text).then(() => showToast(label + ' copied'), fallback); } catch (e) { fallback(); }
+}
+document.getElementById('exCsv').addEventListener('click', () => exportAs(toCsv, 'CSV'));
+document.getElementById('exJson').addEventListener('click', () => exportAs(toJson, 'JSON'));
+document.getElementById('exText').addEventListener('click', () => exportAs(toText, 'Plain text'));
+document.getElementById('exOut').value = toText();
+
+renderBoard(); renderTeams();
+</script>
+</body>
+</html>
