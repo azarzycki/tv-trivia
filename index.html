@@ -98,12 +98,18 @@
     <section class="panel">
       <h2>Export the question set</h2>
       <div class="actions">
+        <button class="small" id="exToggle">Show export tools</button>
+      </div>
+      <p class="hint">Hidden by default so the answers never show on the game screen.</p>
+      <div id="exTools" hidden>
+      <div class="actions">
         <button class="small" id="exCsv">Copy as CSV</button>
         <button class="small" id="exJson">Copy as JSON</button>
         <button class="small" id="exText">Copy as plain text</button>
       </div>
       <textarea id="exOut" readonly aria-label="Exported question set"></textarea>
       <p class="hint">Copy buttons put the full set on your clipboard; the box above shows the same text for manual copying.</p>
+      </div>
     </section>
   </div>
 </div>
@@ -260,7 +266,11 @@ function exportAs(fn, label) {
 document.getElementById('exCsv').addEventListener('click', () => exportAs(toCsv, 'CSV'));
 document.getElementById('exJson').addEventListener('click', () => exportAs(toJson, 'JSON'));
 document.getElementById('exText').addEventListener('click', () => exportAs(toText, 'Plain text'));
-document.getElementById('exOut').value = toText();
+document.getElementById('exToggle').addEventListener('click', () => {
+  const t = document.getElementById('exTools'); t.hidden = !t.hidden;
+  document.getElementById('exToggle').textContent = t.hidden ? 'Show export tools' : 'Hide export tools';
+  if (t.hidden) document.getElementById('exOut').value = '';
+});
 
 renderBoard(); renderTeams();
 </script>
