@@ -6,116 +6,185 @@
 <title>Toronto Trivia Board</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap">
 <style>
-  * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  body { margin: 0; }
-  /* Layout: a single dark game-show screen; 5x5 board up top, scoreboard + export tray below. Single-theme by choice. */
+  /* Layout: full-bleed game-show screen. Board picker first, then a 5x5 board with scoreboard. Single dark theme by choice. */
   :root {
     --bg: #0b1b3a;
     --board: #122a5c;
     --tile: #1b3a7a;
+    --tile-hi: #2a4d96;
     --tile-used: #0f1f45;
     --fg: #f3f1ea;
     --muted: #9fb0d1;
     --gold: #f2c14e;
+    --gold-2: #ffe59a;
     --accent: #e0442f;
+    --good: #5ad184;
     --font-display: "Oswald", "Arial Narrow", Impact, sans-serif;
     --font-body: "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
     color-scheme: dark;
   }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
+    margin: 0;
     background: var(--bg);
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, #23449a 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 100% 100%, #1a1240 0%, transparent 60%);
     color: var(--fg);
     font-family: var(--font-body);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 20px 40px;
     line-height: 1.45;
+    overflow-x: hidden;
   }
-  .wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 22px; }
-  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
-  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.8rem); letter-spacing: .02em; text-transform: uppercase; margin: 0; color: var(--gold); text-wrap: balance; }
-  .sub { color: var(--muted); margin: 0; font-size: .95rem; }
+  /* roaming spotlights */
+  body::before, body::after {
+    content: ""; position: fixed; inset: -20%; pointer-events: none; z-index: 0; opacity: .35;
+    background: radial-gradient(circle at 20% 30%, rgba(242,193,78,.18), transparent 25%);
+    animation: sweep 18s ease-in-out infinite alternate;
+  }
+  body::after { background: radial-gradient(circle at 80% 70%, rgba(224,68,47,.14), transparent 25%); animation-duration: 23s; animation-direction: alternate-reverse; }
+  @keyframes sweep { from { transform: translate(-6%, -4%) rotate(0deg);} to { transform: translate(6%, 5%) rotate(8deg);} }
 
-  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: var(--board); padding: 6px; border: 3px solid var(--gold); }
+  .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+  h1 {
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(1.9rem, 4.5vw, 3rem); letter-spacing: .03em; text-transform: uppercase; margin: 0; text-wrap: balance;
+    background: linear-gradient(100deg, var(--gold) 0%, var(--gold-2) 30%, var(--gold) 45%, #c99a2e 60%, var(--gold-2) 80%, var(--gold) 100%);
+    background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shimmer 6s linear infinite;
+    text-shadow: none;
+  }
+  @keyframes shimmer { to { background-position: -250% 0; } }
+  .sub { color: var(--muted); margin: 0; font-size: .95rem; }
+  .boardname { font-family: var(--font-display); color: var(--gold); text-transform: uppercase; letter-spacing: .08em; font-size: 1rem; }
+
+  /* ---- board picker ---- */
+  .picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+  .pick {
+    position: relative; border: 2px solid var(--gold); background: var(--board); color: var(--fg); text-align: left; cursor: pointer;
+    padding: 22px 18px 18px; min-height: 150px; display: grid; align-content: end; gap: 6px; overflow: hidden;
+    font: inherit; transition: transform .2s, box-shadow .2s;
+  }
+  .pick::before { content: ""; position: absolute; inset: 0; background: var(--theme, linear-gradient(135deg, #2a4d96, transparent)); opacity: .55; transition: opacity .2s; }
+  .pick::after { content: ""; position: absolute; top: -40%; left: -60%; width: 60%; height: 180%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.18), transparent); transform: skewX(-20deg); transition: left .6s; }
+  .pick:hover::after, .pick:focus-visible::after { left: 130%; }
+  .pick:hover, .pick:focus-visible { transform: translateY(-4px) scale(1.02); box-shadow: 0 14px 30px rgba(0,0,0,.45), 0 0 0 3px var(--gold-2); outline: none; }
+  .pick > * { position: relative; }
+  .pick .glyph { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--gold); font-weight: 700; }
+  .pick .t { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .05em; font-size: 1.25rem; }
+  .pick .d { color: var(--muted); font-size: .9rem; }
+  .pick .done { position: absolute; top: 10px; right: 12px; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); background: rgba(0,0,0,.35); padding: 3px 8px; }
+
+  /* ---- board ---- */
+  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: var(--board); padding: 6px; border: 3px solid var(--gold); box-shadow: 0 0 40px rgba(242,193,78,.18), inset 0 0 40px rgba(0,0,0,.35); }
   .cat { background: var(--tile); color: var(--fg); font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; font-size: clamp(.62rem, 1.6vw, 1rem); text-align: center; padding: 10px 6px; display: flex; align-items: center; justify-content: center; min-height: 64px; text-wrap: balance; }
-  .tile { background: var(--tile); border: 0; color: var(--gold); font-family: var(--font-display); font-weight: 700; font-size: clamp(1.1rem, 4vw, 2.4rem); min-height: 64px; cursor: pointer; font-variant-numeric: tabular-nums; transition: background .15s; }
-  .tile:hover, .tile:focus-visible { background: #2a4d96; outline: 2px solid var(--gold); outline-offset: -2px; }
-  .tile.used { background: var(--tile-used); color: transparent; cursor: default; }
-  .tile.used:hover { background: var(--tile-used); outline: none; }
+  .cat.wild { background: linear-gradient(135deg, #5a2a8a, #e0442f); }
+  .cat.wild small { display: block; font-size: .65em; letter-spacing: .15em; color: var(--gold-2); }
+  .tile { background: var(--tile); border: 0; color: var(--gold); font-family: var(--font-display); font-weight: 700; font-size: clamp(1.1rem, 4vw, 2.4rem); min-height: 64px; cursor: pointer; font-variant-numeric: tabular-nums; transition: background .15s, transform .15s; text-shadow: 0 2px 0 rgba(0,0,0,.4); animation: dealin .5s both; }
+  @keyframes dealin { from { opacity: 0; transform: scale(.6) rotateX(60deg); } to { opacity: 1; transform: none; } }
+  .tile:hover, .tile:focus-visible { background: var(--tile-hi); outline: 3px solid var(--gold-2); outline-offset: -3px; transform: scale(1.04); z-index: 1; box-shadow: 0 0 18px rgba(242,193,78,.5); }
+  .tile.used { background: var(--tile-used); color: transparent; cursor: default; animation: none; }
+  .tile.used:hover { background: var(--tile-used); outline: none; transform: none; box-shadow: none; }
 
   .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; }
-  .panel { background: var(--board); padding: 14px 16px; flex: 1 1 280px; min-width: 0; }
+  .panel { background: var(--board); padding: 14px 16px; flex: 1 1 280px; min-width: 0; border-top: 3px solid var(--gold); }
   .panel h2 { font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: .95rem; color: var(--muted); margin: 0 0 10px; }
   .teams { display: grid; gap: 8px; }
   .team { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; }
-  .team input { background: var(--bg); color: var(--fg); border: 1px solid #2a4d96; padding: 6px 8px; font: inherit; min-width: 0; }
-  .score { font-family: var(--font-display); font-size: 1.4rem; color: var(--gold); min-width: 4.5ch; text-align: right; font-variant-numeric: tabular-nums; }
-  button.small { background: var(--tile); color: var(--fg); border: 1px solid #2a4d96; padding: 6px 10px; font: inherit; font-weight: 600; cursor: pointer; }
-  button.small:hover, button.small:focus-visible { background: #2a4d96; outline: none; }
+  .team .name, .team input { background: var(--bg); color: var(--fg); border: 1px solid var(--tile-hi); padding: 6px 8px; font: inherit; min-width: 0; text-align: left; }
+  .team .name { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team .name:hover, .team .name:focus-visible { border-color: var(--gold); outline: none; }
+  .team .name::after { content: " ✎"; color: var(--muted); font-size: .8em; }
+  .team.leader .score { color: var(--gold-2); text-shadow: 0 0 12px rgba(242,193,78,.7); }
+  .score { font-family: var(--font-display); font-size: 1.4rem; color: var(--gold); min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .score.bump { animation: bump .5s; }
+  .score.neg { color: #ffb4a8; }
+  @keyframes bump { 30% { transform: scale(1.35); } }
+  button.small { background: var(--tile); color: var(--fg); border: 1px solid var(--tile-hi); padding: 6px 10px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.small:hover, button.small:focus-visible { background: var(--tile-hi); outline: 2px solid var(--gold-2); outline-offset: -2px; }
   button.small.neg { color: #ffb4a8; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
-  textarea { width: 100%; box-sizing: border-box; height: 150px; background: var(--bg); color: var(--fg); border: 1px solid #2a4d96; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; padding: 8px; margin-top: 8px; resize: vertical; }
+  textarea { width: 100%; height: 150px; background: var(--bg); color: var(--fg); border: 1px solid var(--tile-hi); font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; padding: 8px; margin-top: 8px; resize: vertical; }
 
-  /* clue overlay */
-  .overlay { position: fixed; inset: 0; background: rgba(5,12,30,.92); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-left, 0px)); z-index: 20; }
-  .clue { background: var(--tile); border: 3px solid var(--gold); max-width: 760px; width: 100%; padding: 28px 24px; display: grid; gap: 18px; text-align: center; }
-  .clue .meta { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-size: .9rem; }
-  .clue .q { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.3rem, 3.2vw, 2rem); line-height: 1.3; text-wrap: balance; }
-  .clue .a { font-family: var(--font-display); font-weight: 700; color: var(--gold); font-size: clamp(1.3rem, 3.2vw, 2rem); }
-  .clue .a[hidden] { display: none; }
+  /* ---- clue overlay ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(5,12,30,.9); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-left, 0px)); z-index: 20; perspective: 1200px; }
+  .clue { background: linear-gradient(160deg, #22468f, var(--tile) 60%); border: 3px solid var(--gold); max-width: 820px; width: 100%; padding: 28px 24px; display: grid; gap: 18px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 60px rgba(242,193,78,.25); animation: flipin .55s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes flipin { from { opacity: 0; transform: rotateY(90deg) scale(.9); } to { opacity: 1; transform: none; } }
+  .clue.shake { animation: shake .45s; }
+  @keyframes shake { 20%,60% { transform: translateX(-12px);} 40%,80% { transform: translateX(12px);} }
+  .clue .meta { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .1em; color: var(--gold-2); font-size: .95rem; }
+  .clue .q { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.3rem, 3.4vw, 2.2rem); line-height: 1.3; text-wrap: balance; }
+  .clue .a { font-family: var(--font-display); font-weight: 700; color: var(--gold); font-size: clamp(1.3rem, 3.4vw, 2.2rem); animation: popin .4s both; }
+  @keyframes popin { from { opacity: 0; transform: scale(.7);} 60% { transform: scale(1.08);} to { opacity: 1; transform: none;} }
   .award { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .award button { background: var(--bg); border: 1px solid var(--gold); color: var(--gold); }
   .award button.neg { border-color: var(--accent); color: #ffb4a8; }
-  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--gold); color: #1a1a1a; padding: 8px 16px; font-weight: 600; z-index: 30; }
-  @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--gold); color: #1a1a1a; padding: 8px 16px; font-weight: 600; z-index: 30; animation: popin .3s; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 25; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
   @media (max-width: 480px) { .team { grid-template-columns: 1fr auto; } .team .score { grid-column: 2; } }
 </style>
 </head>
 <body>
+<canvas id="confetti"></canvas>
 <div class="wrap">
   <header>
     <h1>Toronto Trivia Board</h1>
-    <p class="sub">Five categories, five clues each, easy to hard. Click a value to play. Answers are phrased in the question form.</p>
+    <p class="sub" id="subline">Pick a board. Each has four categories on its theme plus one wild card.</p>
   </header>
 
-  <div class="board" id="board"></div>
+  <section id="pickerView">
+    <div class="picker" id="picker"></div>
+  </section>
 
-  <div class="row">
-    <section class="panel">
-      <h2>Scoreboard</h2>
-      <div class="teams" id="teams"></div>
-      <div class="actions">
-        <button class="small" id="addTeam">Add team</button>
-        <button class="small" id="removeTeam">Remove last team</button>
-        <button class="small" id="resetBoard">Reset board</button>
-      </div>
-      <p class="hint">Up to four teams. Inside a clue, give the points to the team that answered correctly, or deduct them for a wrong answer; the running totals update here.</p>
-    </section>
+  <section id="gameView" hidden>
+    <div class="actions" style="margin:0 0 -8px; justify-content: space-between; align-items: center">
+      <span class="boardname" id="boardName"></span>
+      <button class="small" id="changeBoard">Change board</button>
+    </div>
+    <div class="board" id="board" style="margin-top:14px"></div>
 
-    <section class="panel">
-      <h2>Export the question set</h2>
-      <div class="actions">
-        <button class="small" id="exToggle">Show export tools</button>
-      </div>
-      <p class="hint">Hidden by default so the answers never show on the game screen.</p>
-      <div id="exTools" hidden>
-      <div class="actions">
-        <button class="small" id="exCsv">Copy as CSV</button>
-        <button class="small" id="exJson">Copy as JSON</button>
-        <button class="small" id="exText">Copy as plain text</button>
-      </div>
-      <textarea id="exOut" readonly aria-label="Exported question set"></textarea>
-      <p class="hint">Copy buttons put the full set on your clipboard; the box above shows the same text for manual copying.</p>
-      </div>
-    </section>
-  </div>
+    <div class="row" style="margin-top:22px">
+      <section class="panel">
+        <h2>Scoreboard</h2>
+        <div class="teams" id="teams"></div>
+        <div class="actions">
+          <button class="small" id="addTeam">Add team</button>
+          <button class="small" id="removeTeam">Remove last team</button>
+          <button class="small" id="resetScores">Reset scores</button>
+          <button class="small" id="resetBoard">Reset this board</button>
+        </div>
+        <p class="hint">Up to four teams. Select a name to rename it. Team names are remembered on this device.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Export the question set</h2>
+        <div class="actions">
+          <button class="small" id="exToggle">Show export tools</button>
+        </div>
+        <p class="hint">Hidden by default so the answers never show on the game screen.</p>
+        <div id="exTools" hidden>
+          <div class="actions">
+            <button class="small" id="exCsv">Copy as CSV</button>
+            <button class="small" id="exJson">Copy as JSON</button>
+            <button class="small" id="exText">Copy as plain text</button>
+          </div>
+          <textarea id="exOut" readonly aria-label="Exported question set"></textarea>
+          <p class="hint">Exports cover every board. The box shows the same text for manual copying.</p>
+        </div>
+      </section>
+    </div>
+  </section>
 </div>
 
 <div class="overlay" id="overlay" hidden>
-  <div class="clue" role="dialog" aria-modal="true">
+  <div class="clue" id="clueCard" role="dialog" aria-modal="true">
     <div class="meta" id="cMeta"></div>
     <div class="q" id="cQ"></div>
     <div class="a" id="cA" hidden></div>
@@ -128,151 +197,381 @@
 </div>
 
 <script>
-const DATA = [
-  { category: "Origins & History", clues: [
-    { value: 100, q: "Toronto was incorporated as a city in 1834, dropping this name it had carried since 1793.", a: "What is York?" },
-    { value: 200, q: "This lieutenant governor of Upper Canada founded the town of York in 1793.", a: "Who is John Graves Simcoe?" },
-    { value: 300, q: "Toronto's first mayor, he later led the Upper Canada Rebellion of 1837.", a: "Who is William Lyon Mackenzie?" },
-    { value: 400, q: "American forces captured and burned Fort York in the Battle of York in April of this year.", a: "What is 1813?" },
-    { value: 500, q: "The name Toronto is widely traced to this Mohawk word, usually translated as \"where there are trees standing in the water\".", a: "What is tkaronto?" }
-  ]},
-  { category: "Landmarks & Skyline", clues: [
-    { value: 100, q: "Completed in 1976, this 553-metre tower was the world's tallest free-standing structure for more than 30 years.", a: "What is the CN Tower?" },
-    { value: 200, q: "Opened in 1989 as the SkyDome, this stadium had the world's first fully retractable motorized roof.", a: "What is the Rogers Centre?" },
-    { value: 300, q: "Nicknamed \"the Ex\", this annual fair at Exhibition Place dates back to 1879.", a: "What is the Canadian National Exhibition?" },
-    { value: 400, q: "Daniel Libeskind's crystal-shaped addition to this museum on Bloor Street opened in 2007.", a: "What is the Royal Ontario Museum?" },
-    { value: 500, q: "Casa Loma was built for this financier, who lost his fortune and the castle in the 1920s.", a: "Who is Sir Henry Pellatt?" }
-  ]},
-  { category: "The City Today", clues: [
-    { value: 100, q: "Toronto is the capital city of this province.", a: "What is Ontario?" },
-    { value: 200, q: "Toronto's subways, streetcars and buses are run by this agency, known by three letters.", a: "What is the TTC (Toronto Transit Commission)?" },
-    { value: 300, q: "Toronto's main international airport is named after this former prime minister.", a: "Who is Lester B. Pearson?" },
-    { value: 400, q: "In 1998 Toronto amalgamated with Scarborough, North York, Etobicoke, York and this smaller borough.", a: "What is East York?" },
-    { value: 500, q: "The twin curved towers of Toronto City Hall, opened in 1965, were designed by this Finnish architect.", a: "Who is Viljo Revell?" }
-  ]},
-  { category: "Sports", clues: [
-    { value: 100, q: "This team is the only NBA franchise based in Canada.", a: "Who are the Toronto Raptors?" },
-    { value: 200, q: "The Toronto Blue Jays won back-to-back World Series titles in these two consecutive years.", a: "What are 1992 and 1993?" },
-    { value: 300, q: "Toronto's CFL team, which has won the Grey Cup more times than any other franchise.", a: "Who are the Toronto Argonauts?" },
-    { value: 400, q: "This Toronto-born rapper, founder of the OVO label, serves as a global ambassador for the Raptors.", a: "Who is Drake?" },
-    { value: 500, q: "Before becoming the St. Patricks and then the Maple Leafs, Toronto's NHL club played under this name in the league's first season, 1917-18.", a: "What are the Toronto Arenas?" }
-  ]},
-  { category: "Screen & Stage", clues: [
-    { value: 100, q: "Along with Vancouver, Toronto's film and TV industry earned it this Hollywood-inspired nickname.", a: "What is Hollywood North?" },
-    { value: 200, q: "Held every September, this festival hands out the People's Choice Award.", a: "What is the Toronto International Film Festival (TIFF)?" },
-    { value: 300, q: "This CBC sitcom followed a Korean-Canadian family running a convenience store in Toronto.", a: "What is Kim's Convenience?" },
-    { value: 400, q: "This Toronto-set teen drama franchise includes \"Junior High\" and \"The Next Generation\" and launched a future rap superstar.", a: "What is Degrassi?" },
-    { value: 500, q: "Opened in 1894, Massey Hall was a gift to the city from this farm-machinery magnate.", a: "Who is Hart Massey?" }
-  ]}
+/* ---------- question data: 6 boards, 5 categories each (4 themed + 1 wild card), $100-$500 ---------- */
+const BOARDS = [
+{ id: "classic", title: "Classic Toronto", glyph: "TO", desc: "History, landmarks, city life and the screen.", theme: "linear-gradient(135deg,#2a4d96,#0b1b3a)", categories: [
+  { name: "Origins & History", clues: [
+    { q: "Toronto was incorporated as a city in 1834, dropping this name it had carried since 1793.", a: "What is York?" },
+    { q: "This lieutenant governor of Upper Canada founded the town of York in 1793.", a: "Who is John Graves Simcoe?" },
+    { q: "Toronto's first mayor, he later led the Upper Canada Rebellion of 1837.", a: "Who is William Lyon Mackenzie?" },
+    { q: "American forces captured and burned Fort York in the Battle of York in April of this year.", a: "What is 1813?" },
+    { q: "The name Toronto is widely traced to this Mohawk word, usually translated as \"where there are trees standing in the water\".", a: "What is tkaronto?" } ]},
+  { name: "Landmarks & Skyline", clues: [
+    { q: "Completed in 1976, this 553-metre tower was the world's tallest free-standing structure for more than 30 years.", a: "What is the CN Tower?" },
+    { q: "Opened in 1989 as the SkyDome, this stadium had the world's first fully retractable motorized roof.", a: "What is the Rogers Centre?" },
+    { q: "Nicknamed \"the Ex\", this annual fair at Exhibition Place dates back to 1879.", a: "What is the Canadian National Exhibition?" },
+    { q: "Daniel Libeskind's crystal-shaped addition to this museum on Bloor Street opened in 2007.", a: "What is the Royal Ontario Museum?" },
+    { q: "Casa Loma was built for this financier, who lost his fortune and the castle in the 1920s.", a: "Who is Sir Henry Pellatt?" } ]},
+  { name: "The City Today", clues: [
+    { q: "Toronto is the capital city of this province.", a: "What is Ontario?" },
+    { q: "Toronto's subways, streetcars and buses are run by this agency, known by three letters.", a: "What is the TTC (Toronto Transit Commission)?" },
+    { q: "Toronto's main international airport is named after this former prime minister.", a: "Who is Lester B. Pearson?" },
+    { q: "In 1998 Toronto amalgamated with Scarborough, North York, Etobicoke, York and this smaller borough.", a: "What is East York?" },
+    { q: "The twin curved towers of Toronto City Hall, opened in 1965, were designed by this Finnish architect.", a: "Who is Viljo Revell?" } ]},
+  { name: "Screen & Stage", clues: [
+    { q: "Along with Vancouver, Toronto's film and TV industry earned it this Hollywood-inspired nickname.", a: "What is Hollywood North?" },
+    { q: "Held every September, this festival hands out the People's Choice Award.", a: "What is the Toronto International Film Festival (TIFF)?" },
+    { q: "This CBC sitcom followed a Korean-Canadian family running a convenience store in Toronto.", a: "What is Kim's Convenience?" },
+    { q: "This Toronto-set teen drama franchise includes \"Junior High\" and \"The Next Generation\" and launched a future rap superstar.", a: "What is Degrassi?" },
+    { q: "Opened in 1894, Massey Hall was a gift to the city from this farm-machinery magnate.", a: "Who is Hart Massey?" } ]},
+  { name: "Sports", wild: true, clues: [
+    { q: "This team is the only NBA franchise based in Canada.", a: "Who are the Toronto Raptors?" },
+    { q: "The Toronto Blue Jays won back-to-back World Series titles in these two consecutive years.", a: "What are 1992 and 1993?" },
+    { q: "Toronto's CFL team, which has won the Grey Cup more times than any other franchise.", a: "Who are the Toronto Argonauts?" },
+    { q: "This Toronto-born rapper, founder of the OVO label, serves as a global ambassador for the Raptors.", a: "Who is Drake?" },
+    { q: "Before becoming the St. Patricks and then the Maple Leafs, Toronto's NHL club played under this name in the league's first season, 1917-18.", a: "What are the Toronto Arenas?" } ]}
+]},
+{ id: "sports", title: "Sports Night", glyph: "6IX", desc: "Leafs, Jays, Raptors and the buildings they play in.", theme: "linear-gradient(135deg,#1d4ed8,#b91c1c)", categories: [
+  { name: "Maple Leafs", clues: [
+    { q: "The Maple Leafs last won the Stanley Cup in this year.", a: "What is 1967?" },
+    { q: "The Leafs' home since 1999, it opened as the Air Canada Centre.", a: "What is Scotiabank Arena?" },
+    { q: "This American-born centre scored 69 goals for the Leafs in the 2023-24 season.", a: "Who is Auston Matthews?" },
+    { q: "Captain for a dozen seasons, he scored the empty-net goal that clinched the 1967 Cup.", a: "Who is George Armstrong?" },
+    { q: "This owner bought the Toronto St. Patricks in 1927 and renamed them the Maple Leafs.", a: "Who is Conn Smythe?" } ]},
+  { name: "Blue Jays", clues: [
+    { q: "The Blue Jays play their home games in this downtown stadium with a retractable roof.", a: "What is the Rogers Centre?" },
+    { q: "From 1977 to 1989 the Jays played at this stadium on the CNE grounds.", a: "What is Exhibition Stadium?" },
+    { q: "Joe Carter's 1993 World Series-winning home run came off this Phillies closer.", a: "Who is Mitch Williams?" },
+    { q: "In 2011 this second baseman became the first player inducted into the Hall of Fame as a Blue Jay.", a: "Who is Roberto Alomar?" },
+    { q: "The Jays' first-ever game, on a snowy April 7, 1977, was a win over this team.", a: "Who are the Chicago White Sox?" } ]},
+  { name: "Raptors", clues: [
+    { q: "The Raptors won their first NBA championship in this year.", a: "What is 2019?" },
+    { q: "He was named Finals MVP in 2019 and left for the Clippers a month later.", a: "Who is Kawhi Leonard?" },
+    { q: "\"Vinsanity\": this Raptor won the 2000 NBA Slam Dunk Contest.", a: "Who is Vince Carter?" },
+    { q: "Before moving to the Air Canada Centre in 1999, the Raptors played home games in this building.", a: "What is the SkyDome?" },
+    { q: "This point guard, nicknamed Mighty Mouse, was the Raptors' first-ever draft pick in 1995.", a: "Who is Damon Stoudamire?" } ]},
+  { name: "Venues", clues: [
+    { q: "The Leafs and Raptors share this arena at Bay and Lakeshore.", a: "What is Scotiabank Arena?" },
+    { q: "BMO Field at Exhibition Place is home to Toronto FC and this CFL team.", a: "Who are the Toronto Argonauts?" },
+    { q: "The Hockey Hall of Fame occupies a former Bank of Montreal building at Yonge and this street.", a: "What is Front Street?" },
+    { q: "Woodbine Racetrack hosts this stakes race, run every year since 1860 and renamed in 2023.", a: "What is the King's Plate (formerly the Queen's Plate)?" },
+    { q: "Canada's biggest tennis tournament is played at this stadium on the York University campus.", a: "What is Sobeys Stadium (formerly the Aviva Centre)?" } ]},
+  { name: "Toronto Firsts", wild: true, clues: [
+    { q: "Canada's first subway opened under Yonge Street in this year.", a: "What is 1954?" },
+    { q: "Doctors at the Hospital for Sick Children developed this vitamin-enriched infant cereal in 1930.", a: "What is Pablum?" },
+    { q: "Insulin was discovered in 1921 at this university.", a: "What is the University of Toronto?" },
+    { q: "This Toronto department store issued Canada's first mail-order catalogue in 1884.", a: "What is Eaton's?" },
+    { q: "Torontonian Norman Breakey invented this painting tool in 1940 but never profited from it.", a: "What is the paint roller?" } ]}
+]},
+{ id: "halloween", title: "Haunted Toronto", glyph: "BOO", desc: "Ghost stories, horror films and spooky history.", theme: "linear-gradient(135deg,#ea580c,#3b0764)", categories: [
+  { name: "Haunted Places", clues: [
+    { q: "This Gothic Revival castle on a hill is Toronto's best-known \"haunted\" tourist stop.", a: "What is Casa Loma?" },
+    { q: "This Bond Street museum, the last home of Toronto's first mayor, is famous for reported ghost sightings.", a: "What is Mackenzie House?" },
+    { q: "This 1864 jail on Gerrard Street, now part of a hospital, is a fixture of Toronto ghost tours.", a: "What is the Don Jail?" },
+    { q: "This disused \"ghost\" subway station beneath Bay station is used for film shoots.", a: "What is Lower Bay?" },
+    { q: "Toronto's oldest surviving lighthouse, on the Islands, is said to be haunted by a keeper murdered in 1815.", a: "What is the Gibraltar Point Lighthouse?" } ]},
+  { name: "Horror on Screen", clues: [
+    { q: "This Toronto-born director of The Fly and Videodrome is the king of body horror.", a: "Who is David Cronenberg?" },
+    { q: "Toronto City Hall doubled as Umbrella Corporation headquarters in this 2004 zombie sequel.", a: "What is Resident Evil: Apocalypse?" },
+    { q: "Guillermo del Toro's Best Picture winner, shot in Toronto in 2016, is about a woman and an amphibious creature.", a: "What is The Shape of Water?" },
+    { q: "The 2004 remake of this George Romero film was shot inside a Thornhill shopping mall.", a: "What is Dawn of the Dead?" },
+    { q: "This 1974 sorority-house slasher, shot in Toronto, is considered one of the first of its genre.", a: "What is Black Christmas?" } ]},
+  { name: "Spooky History", clues: [
+    { q: "Founded in 1850, this Cabbagetown burial ground has a suitably grim name.", a: "What is the Toronto Necropolis?" },
+    { q: "Glenn Gould and Timothy Eaton are buried in this large midtown cemetery.", a: "What is Mount Pleasant Cemetery?" },
+    { q: "The Great Fire of Toronto destroyed much of downtown in April of this year.", a: "What is 1904?" },
+    { q: "This spiral-staircase mansion's name translates from the Ojibwe for \"hill\", and it gave a famous avenue its name.", a: "What is Spadina House?" },
+    { q: "This American general died when Fort York's gunpowder magazine exploded during the Battle of York.", a: "Who is Zebulon Pike?" } ]},
+  { name: "Halloween Today", clues: [
+    { q: "Canada's Wonderland turns into this each October, with haunted mazes and scare actors.", a: "What is Halloween Haunt?" },
+    { q: "This haunted-attraction event has run at Exhibition Place every October since the 1990s.", a: "What is Screemers?" },
+    { q: "Toronto's biggest Halloween street party takes over Church Street in this neighbourhood.", a: "What is the Village (Church and Wellesley)?" },
+    { q: "Started in 2003, this annual shuffle of the undead through downtown is one of the world's oldest.", a: "What is the Toronto Zombie Walk?" },
+    { q: "On November 1, this Roncesvalles-area park lines its paths with hundreds of carved jack-o'-lanterns.", a: "What is Sorauren Park?" } ]},
+  { name: "Creatures & Critters", wild: true, clues: [
+    { q: "Toronto's unofficial mascot, this masked bandit defeated the city's \"animal-proof\" green bins.", a: "What is the raccoon?" },
+    { q: "Toronto is known for a dark-furred variety of this common park animal.", a: "What is the black squirrel?" },
+    { q: "The Toronto Zoo's giant pandas Er Shun and Da Mao arrived on loan from this country in 2013.", a: "What is China?" },
+    { q: "The Royal Ontario Museum's Bat Cave recreates a real cave on this Caribbean island.", a: "What is Jamaica?" },
+    { q: "Staff at the Hockey Hall of Fame tell of a ghost by this name, said to be a bank teller who died there in 1953.", a: "Who is Dorothy?" } ]}
+]},
+{ id: "food", title: "Hogtown Eats", glyph: "YUM", desc: "Markets, drinks, sweets and the dishes Toronto claims.", theme: "linear-gradient(135deg,#b45309,#166534)", categories: [
+  { name: "Iconic Eats", clues: [
+    { q: "The peameal bacon sandwich is the signature dish of this market at Front and Jarvis.", a: "What is St. Lawrence Market?" },
+    { q: "This spiced, flaky Caribbean pastry has been sold at Toronto subway stations for decades.", a: "What is the Jamaican patty?" },
+    { q: "Roti, curry wrapped in flatbread, came to Toronto with immigrants from this two-island Caribbean nation.", a: "What is Trinidad and Tobago?" },
+    { q: "Opened in 1929 on Victoria Street, this diner is often called Toronto's oldest restaurant.", a: "What is The Senator?" },
+    { q: "Toronto's nickname \"Hogtown\" comes from this huge 19th-century pork-packing company.", a: "What is the William Davies Company?" } ]},
+  { name: "Markets & Streets", clues: [
+    { q: "This bohemian market neighbourhood west of Spadina is a National Historic Site.", a: "What is Kensington Market?" },
+    { q: "Downtown Chinatown is centred on this avenue at Dundas.", a: "What is Spadina Avenue?" },
+    { q: "Greektown, home of the Taste of the Danforth festival, lines this avenue.", a: "What is the Danforth (Danforth Avenue)?" },
+    { q: "Little Italy, with its cafes and the Royal Cinema, runs along this street.", a: "What is College Street?" },
+    { q: "The Gerrard India Bazaar, Toronto's South Asian shopping strip, is on this street east of Coxwell.", a: "What is Gerrard Street East?" } ]},
+  { name: "Drinks", clues: [
+    { q: "This brewery makes its pilsner in a former railway roundhouse beside the CN Tower.", a: "What is Steam Whistle?" },
+    { q: "The Distillery District was once the home of this whisky maker, founded in 1832.", a: "What is Gooderham & Worts?" },
+    { q: "Ontario's government-run liquor retailer goes by these four letters.", a: "What is the LCBO?" },
+    { q: "This King Street West tavern, opened in 1849, claims to be Toronto's oldest.", a: "What is the Wheat Sheaf Tavern?" },
+    { q: "By the 1870s Gooderham & Worts was described as the largest distillery in this.", a: "What is the British Empire?" } ]},
+  { name: "Sweet Tooth", clues: [
+    { q: "This chocolate chain, founded in Toronto in 1913, is named after a War of 1812 heroine.", a: "What is Laura Secord?" },
+    { q: "These bite-sized cinnamon-sugar doughnuts are a CNE tradition.", a: "What are Tiny Tom doughnuts?" },
+    { q: "This wafer-and-coffee chocolate bar was created by Rowntree in Toronto in 1938.", a: "What is Coffee Crisp?" },
+    { q: "Jersey Milk and Crispy Crunch came from this Toronto chocolate company founded by William Neilson.", a: "What is Neilson?" },
+    { q: "Cadbury's Gladstone Avenue plant makes this caramel-filled bar with a famous \"secret\".", a: "What is Caramilk?" } ]},
+  { name: "Famous Torontonians", wild: true, clues: [
+    { q: "This Matrix star grew up in Toronto and attended several of its high schools.", a: "Who is Keanu Reeves?" },
+    { q: "This Toronto author wrote The Handmaid's Tale and Alias Grace.", a: "Who is Margaret Atwood?" },
+    { q: "Born on University Avenue in 1892, she became silent-film star \"America's Sweetheart\".", a: "Who is Mary Pickford?" },
+    { q: "This U of T professor coined \"the medium is the message\".", a: "Who is Marshall McLuhan?" },
+    { q: "This urbanist moved to Toronto in 1968 and helped stop the Spadina Expressway.", a: "Who is Jane Jacobs?" } ]}
+]},
+{ id: "city", title: "Streets & Subways", glyph: "TTC", desc: "Neighbourhoods, transit, the Islands and the streets.", theme: "linear-gradient(135deg,#b91c1c,#1e3a8a)", categories: [
+  { name: "Neighbourhoods", clues: [
+    { q: "This upscale shopping district north of Bloor was a hippie hangout in the 1960s.", a: "What is Yorkville?" },
+    { q: "This east-end neighbourhood is known for its boardwalk and Victoria Day fireworks.", a: "What is the Beaches (the Beach)?" },
+    { q: "This neighbourhood got its name from Irish immigrants who grew vegetables in their front yards.", a: "What is Cabbagetown?" },
+    { q: "Honest Ed's discount store stood at Bloor and Bathurst in this neighbourhood until 2016.", a: "What is the Annex?" },
+    { q: "This west-end neighbourhood stayed \"dry\", with no alcohol sales, from 1904 until 2000.", a: "What is the Junction?" } ]},
+  { name: "The TTC", clues: [
+    { q: "Toronto's first subway line opened under this street in 1954.", a: "What is Yonge Street?" },
+    { q: "Line 1 carries the names of these two streets.", a: "What are Yonge and University?" },
+    { q: "The 501 streetcar, one of the longest routes in North America, runs along this street.", a: "What is Queen Street?" },
+    { q: "Line 3, the Scarborough RT, closed for good in this year.", a: "What is 2023?" },
+    { q: "The \"ghost\" Lower Bay station was in regular service for only six months, during this year.", a: "What is 1966?" } ]},
+  { name: "Streets", clues: [
+    { q: "Long billed as the world's longest street, it divides Toronto's east from its west.", a: "What is Yonge Street?" },
+    { q: "Canada's big banks are headquartered on this street, a synonym for Canadian finance.", a: "What is Bay Street?" },
+    { q: "This street's West stretch is known for its boutiques, galleries and the old MuchMusic building.", a: "What is Queen Street?" },
+    { q: "This avenue's name comes from an Ojibwe word for \"hill\" or \"little hill\".", a: "What is Spadina Avenue?" },
+    { q: "In 2023 city council renamed Yonge-Dundas Square to this.", a: "What is Sankofa Square?" } ]},
+  { name: "Islands & Waterfront", clues: [
+    { q: "This small amusement park with an antique carousel is on Centre Island.", a: "What is Centreville?" },
+    { q: "The downtown airport on the Islands is named after this First World War flying ace.", a: "Who is Billy Bishop?" },
+    { q: "This Island beach is officially clothing-optional.", a: "What is Hanlan's Point?" },
+    { q: "This Island community of about 250 homes sits at the eastern end of the chain.", a: "What is Ward's Island?" },
+    { q: "The Islands were a peninsula until a storm cut the Eastern Gap in this year.", a: "What is 1858?" } ]},
+  { name: "Comedy", wild: true, clues: [
+    { q: "This improv theatre's Toronto branch launched John Candy, Eugene Levy and Catherine O'Hara.", a: "What is The Second City?" },
+    { q: "This 1976-84 sketch show about a tiny TV station grew out of Second City Toronto.", a: "What is SCTV?" },
+    { q: "Jim Carrey got his start in the 1970s at this Toronto comedy club chain founded by Mark Breslin.", a: "What is Yuk Yuk's?" },
+    { q: "This Scarborough native played Austin Powers and voiced Shrek.", a: "Who is Mike Myers?" },
+    { q: "Born in Toronto in 1944, he created Saturday Night Live.", a: "Who is Lorne Michaels?" } ]}
+]},
+{ id: "arts", title: "Lights & Sound", glyph: "ART", desc: "Music, television, theatre and the festivals.", theme: "linear-gradient(135deg,#7e22ce,#0e7490)", categories: [
+  { name: "Music", clues: [
+    { q: "This Scarborough-raised singer of \"Blinding Lights\" headlined the 2021 Super Bowl halftime show.", a: "Who is The Weeknd?" },
+    { q: "Formed in Willowdale in 1968, this prog-rock trio recorded \"Tom Sawyer\".", a: "Who are Rush?" },
+    { q: "This Scarborough band sang \"If I Had $1000000\" and the Big Bang Theory theme.", a: "Who are the Barenaked Ladies?" },
+    { q: "This rock legend was born in Toronto in 1945 and sang \"Heart of Gold\".", a: "Who is Neil Young?" },
+    { q: "The Rolling Stones played a surprise 1977 club show at this Spadina Avenue venue.", a: "What is the El Mocambo?" } ]},
+  { name: "Television", clues: [
+    { q: "This Toronto-made CBC sitcom created by Eugene and Dan Levy swept the comedy Emmys in 2020.", a: "What is Schitt's Creek?" },
+    { q: "This legal drama set in New York, with Meghan Markle in the cast, was shot in Toronto.", a: "What is Suits?" },
+    { q: "This dystopian series based on a Margaret Atwood novel is filmed in and around Toronto.", a: "What is The Handmaid's Tale?" },
+    { q: "Ernie Coombs hosted this CBC children's show with Casey and Finnegan from 1967 to 1996.", a: "What is Mr. Dressup?" },
+    { q: "Paul Gross played a Mountie in Chicago in this 1990s series shot mostly in Toronto.", a: "What is Due South?" } ]},
+  { name: "Theatre", clues: [
+    { q: "This family name is on Toronto's biggest theatre company and a street-sign-style marquee on King Street.", a: "What is Mirvish?" },
+    { q: "Opened in 1907, this King Street theatre is the oldest continuously operating legitimate theatre in North America.", a: "What is the Royal Alexandra Theatre?" },
+    { q: "The Elgin and this theatre form the world's last operating double-decker Edwardian theatre.", a: "What is the Winter Garden Theatre?" },
+    { q: "Phantom of the Opera ran for ten years at this Yonge Street theatre, now named for Ed Mirvish.", a: "What is the Pantages Theatre?" },
+    { q: "This opera house, opened in 2006, is home to the Canadian Opera Company and the National Ballet.", a: "What is the Four Seasons Centre for the Performing Arts?" } ]},
+  { name: "Festivals", clues: [
+    { q: "Canada's music awards, first handed out in Toronto in 1970, are named after broadcast regulator Pierre Juneau.", a: "What are the Junos?" },
+    { q: "This Caribbean carnival, with its Grand Parade along Lake Shore Boulevard, began in 1967.", a: "What is Caribana (Toronto Caribbean Carnival)?" },
+    { q: "North America's largest documentary film festival takes its name from these two words.", a: "What is Hot Docs?" },
+    { q: "This June festival's parade is one of the largest of its kind in the world.", a: "What is Pride Toronto?" },
+    { q: "This Toronto-based prize for the best Canadian album of the year is named after a star.", a: "What is the Polaris Music Prize?" } ]},
+  { name: "By the Numbers", wild: true, clues: [
+    { q: "Toronto's original telephone area code.", a: "What is 416?" },
+    { q: "Rounded to the nearest hundred thousand, Toronto's population in the 2021 census.", a: "What is 2.8 million?" },
+    { q: "After a 2018 cut, Toronto city council has this many wards.", a: "What is 25?" },
+    { q: "The 1998 amalgamation merged this many municipalities into one city.", a: "What is six?" },
+    { q: "Union Station, Canada's busiest transportation hub, opened in this year.", a: "What is 1927?" } ]}
+]}
 ];
+const VALUES = [100, 200, 300, 400, 500];
 
-const board = document.getElementById('board');
-const teamsEl = document.getElementById('teams');
-let used = new Set();
+/* ---------- state ---------- */
+const LS = { names: 'tv-trivia-team-names', game: 'tv-trivia-game' };
 let teams = [1,2,3,4].map(n => ({ name: 'Team ' + n, score: 0 }));
-
+let usedByBoard = {};
+let boardId = null;
 try {
-  const saved = JSON.parse(localStorage.getItem('toronto-jeopardy') || 'null');
-  if (saved && Array.isArray(saved.used) && Array.isArray(saved.teams)) { used = new Set(saved.used); teams = saved.teams; }
+  const names = JSON.parse(localStorage.getItem(LS.names) || 'null');
+  const game = JSON.parse(localStorage.getItem(LS.game) || 'null');
+  if (game && Array.isArray(game.scores)) teams = game.scores.map((s, i) => ({ name: 'Team ' + (i + 1), score: s }));
+  if (Array.isArray(names) && names.length) teams = names.map((n, i) => ({ name: n, score: teams[i] ? teams[i].score : 0 }));
+  if (game && game.usedByBoard) usedByBoard = game.usedByBoard;
+  if (game && game.boardId && BOARDS.some(b => b.id === game.boardId)) boardId = game.boardId;
 } catch (e) {}
+function save() {
+  try {
+    localStorage.setItem(LS.names, JSON.stringify(teams.map(t => t.name)));
+    localStorage.setItem(LS.game, JSON.stringify({ scores: teams.map(t => t.score), usedByBoard, boardId }));
+  } catch (e) {}
+}
+const board = () => BOARDS.find(b => b.id === boardId);
+const usedSet = () => new Set(usedByBoard[boardId] || []);
+const $ = id => document.getElementById(id);
 
-function save() { try { localStorage.setItem('toronto-jeopardy', JSON.stringify({ used: [...used], teams })); } catch (e) {} }
+/* ---------- views ---------- */
+function showPicker() {
+  boardId = null; save();
+  $('gameView').hidden = true; $('pickerView').hidden = false;
+  $('subline').textContent = 'Pick a board. Each has four categories on its theme plus one wild card.';
+  const p = $('picker'); p.innerHTML = '';
+  BOARDS.forEach((b, i) => {
+    const used = (usedByBoard[b.id] || []).length;
+    const btn = document.createElement('button'); btn.className = 'pick'; btn.style.setProperty('--theme', b.theme);
+    btn.style.animation = `dealin .5s ${i * 80}ms both`;
+    btn.innerHTML = `<span class="glyph"></span><span class="t"></span><span class="d"></span>`;
+    btn.querySelector('.glyph').textContent = b.glyph;
+    btn.querySelector('.t').textContent = b.title;
+    btn.querySelector('.d').textContent = b.desc;
+    if (used) { const s = document.createElement('span'); s.className = 'done'; s.textContent = used >= 25 ? 'Played' : used + ' / 25 played'; btn.appendChild(s); }
+    btn.addEventListener('click', () => startBoard(b.id));
+    p.appendChild(btn);
+  });
+  const first = p.querySelector('.pick'); if (first) first.focus();
+}
+function startBoard(id) {
+  boardId = id; save();
+  $('pickerView').hidden = true; $('gameView').hidden = false;
+  $('boardName').textContent = board().title;
+  $('subline').textContent = 'Click a value to play. Answers are phrased in the question form.';
+  renderBoard(); renderTeams();
+}
 
 function renderBoard() {
-  board.innerHTML = '';
-  DATA.forEach(c => { const d = document.createElement('div'); d.className = 'cat'; d.textContent = c.category; board.appendChild(d); });
+  const b = board(), used = usedSet(), el = $('board'); el.innerHTML = '';
+  b.categories.forEach(c => {
+    const d = document.createElement('div'); d.className = 'cat' + (c.wild ? ' wild' : '');
+    if (c.wild) { const s = document.createElement('small'); s.textContent = 'Wild card'; d.appendChild(s); }
+    d.appendChild(document.createTextNode(c.name)); el.appendChild(d);
+  });
   for (let r = 0; r < 5; r++) {
-    DATA.forEach((c, ci) => {
+    b.categories.forEach((c, ci) => {
       const key = ci + '-' + r;
-      const b = document.createElement('button');
-      b.className = 'tile' + (used.has(key) ? ' used' : '');
-      b.textContent = '$' + c.clues[r].value;
-      b.setAttribute('aria-label', c.category + ' for $' + c.clues[r].value);
-      b.disabled = used.has(key);
-      b.addEventListener('click', () => openClue(ci, r));
-      board.appendChild(b);
+      const t = document.createElement('button');
+      t.className = 'tile' + (used.has(key) ? ' used' : '');
+      t.style.animationDelay = (r * 5 + ci) * 35 + 'ms';
+      t.textContent = '$' + VALUES[r];
+      t.setAttribute('aria-label', c.name + ' for $' + VALUES[r]);
+      t.disabled = used.has(key);
+      t.addEventListener('click', () => openClue(ci, r));
+      el.appendChild(t);
     });
   }
 }
 
-function renderTeams() {
-  teamsEl.innerHTML = '';
+function renderTeams(bumpIndex) {
+  const el = $('teams'); el.innerHTML = '';
+  const top = Math.max(...teams.map(t => t.score));
   teams.forEach((t, i) => {
-    const row = document.createElement('div'); row.className = 'team';
-    const inp = document.createElement('input'); inp.value = t.name; inp.id = 'team-name-' + i; inp.setAttribute('aria-label', 'Team name');
-    inp.addEventListener('input', () => { t.name = inp.value; save(); });
-    const sc = document.createElement('div'); sc.className = 'score'; sc.textContent = t.score;
+    const row = document.createElement('div'); row.className = 'team' + (t.score === top && t.score > 0 && teams.filter(x => x.score === top).length === 1 ? ' leader' : '');
+    // Name is a button, not an input, so D-pad focus never raises the TV keyboard. Selecting it swaps in an input.
+    const name = document.createElement('button'); name.className = 'name'; name.id = 'team-name-' + i; name.textContent = t.name; name.title = 'Rename team';
+    name.addEventListener('click', () => editName(i, row, name));
+    const sc = document.createElement('div'); sc.className = 'score' + (t.score < 0 ? ' neg' : '') + (i === bumpIndex ? ' bump' : ''); sc.textContent = t.score;
     const plus = document.createElement('button'); plus.className = 'small'; plus.textContent = '+100';
-    plus.addEventListener('click', () => { t.score += 100; renderTeams(); save(); });
+    plus.addEventListener('click', () => { t.score += 100; renderTeams(i); save(); });
     const minus = document.createElement('button'); minus.className = 'small neg'; minus.textContent = '−100';
-    minus.addEventListener('click', () => { t.score -= 100; renderTeams(); save(); });
-    row.append(inp, sc, plus, minus);
-    teamsEl.appendChild(row);
+    minus.addEventListener('click', () => { t.score -= 100; renderTeams(i); save(); });
+    row.append(name, sc, plus, minus);
+    el.appendChild(row);
   });
 }
+function editName(i, row, nameBtn) {
+  const inp = document.createElement('input'); inp.value = teams[i].name; inp.maxLength = 24; inp.id = 'team-input-' + i; inp.setAttribute('aria-label', 'Team name');
+  const commit = () => { const v = inp.value.trim(); if (v) teams[i].name = v; save(); renderTeams(); $('team-name-' + i).focus(); };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') { renderTeams(); $('team-name-' + i).focus(); } });
+  inp.addEventListener('blur', commit);
+  row.replaceChild(inp, nameBtn); inp.focus(); inp.select();
+}
 
-const overlay = document.getElementById('overlay');
+/* ---------- clue ---------- */
 let current = null;
 function openClue(ci, r) {
+  const c = board().categories[ci], clue = c.clues[r], value = VALUES[r];
   current = { ci, r };
-  const clue = DATA[ci].clues[r];
-  document.getElementById('cMeta').textContent = DATA[ci].category + ' · $' + clue.value;
-  document.getElementById('cQ').textContent = clue.q;
-  const a = document.getElementById('cA'); a.textContent = clue.a; a.hidden = true;
-  const award = document.getElementById('cAward'); award.innerHTML = '';
-  teams.forEach(t => {
-    const win = document.createElement('button'); win.className = 'small'; win.textContent = t.name + ' +' + clue.value;
-    win.addEventListener('click', () => { t.score += clue.value; finish(); });
-    const lose = document.createElement('button'); lose.className = 'small neg'; lose.textContent = t.name + ' −' + clue.value;
-    lose.addEventListener('click', () => { t.score -= clue.value; renderTeams(); save(); });
+  $('cMeta').textContent = c.name + ' · $' + value;
+  $('cQ').textContent = clue.q;
+  const a = $('cA'); a.textContent = clue.a; a.hidden = true;
+  const award = $('cAward'); award.innerHTML = '';
+  teams.forEach((t, i) => {
+    const win = document.createElement('button'); win.className = 'small'; win.textContent = t.name + ' +' + value;
+    win.addEventListener('click', () => { t.score += value; confetti(); renderTeams(i); save(); finish(); });
+    const lose = document.createElement('button'); lose.className = 'small neg'; lose.textContent = t.name + ' −' + value;
+    lose.addEventListener('click', () => { t.score -= value; renderTeams(i); save(); const card = $('clueCard'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); });
     award.append(win, lose);
   });
-  overlay.hidden = false;
-  document.getElementById('cReveal').focus();
+  const card = $('clueCard'); card.classList.remove('shake');
+  $('overlay').hidden = false;
+  $('cReveal').focus();
 }
 function finish() {
-  if (current) used.add(current.ci + '-' + current.r);
-  overlay.hidden = true; current = null;
-  renderBoard(); renderTeams(); save();
+  if (current) { const s = usedSet(); s.add(current.ci + '-' + current.r); usedByBoard[boardId] = [...s]; }
+  $('overlay').hidden = true; current = null;
+  renderBoard(); save();
 }
-document.getElementById('cReveal').addEventListener('click', () => { document.getElementById('cA').hidden = false; });
-document.getElementById('cClose').addEventListener('click', finish);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !overlay.hidden) finish(); });
+$('cReveal').addEventListener('click', () => { $('cA').hidden = false; });
+$('cClose').addEventListener('click', finish);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('overlay').hidden) finish(); });
 
-document.getElementById('addTeam').addEventListener('click', () => { if (teams.length < 4) { teams.push({ name: 'Team ' + (teams.length + 1), score: 0 }); renderTeams(); save(); } });
-document.getElementById('removeTeam').addEventListener('click', () => { if (teams.length > 1) { teams.pop(); renderTeams(); save(); } });
-document.getElementById('resetBoard').addEventListener('click', () => { used = new Set(); teams.forEach(t => t.score = 0); renderBoard(); renderTeams(); save(); });
+/* ---------- controls ---------- */
+$('changeBoard').addEventListener('click', showPicker);
+$('addTeam').addEventListener('click', () => { if (teams.length < 4) { teams.push({ name: 'Team ' + (teams.length + 1), score: 0 }); renderTeams(); save(); } });
+$('removeTeam').addEventListener('click', () => { if (teams.length > 1) { teams.pop(); renderTeams(); save(); } });
+$('resetScores').addEventListener('click', () => { teams.forEach(t => t.score = 0); renderTeams(); save(); });
+$('resetBoard').addEventListener('click', () => { delete usedByBoard[boardId]; renderBoard(); save(); });
 
-/* export */
+/* ---------- confetti ---------- */
+const cv = $('confetti'), ctx = cv.getContext('2d'); let pieces = [], raf = null;
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  cv.width = innerWidth; cv.height = innerHeight;
+  const colors = ['#f2c14e', '#ffe59a', '#e0442f', '#5ad184', '#f3f1ea', '#2a4d96'];
+  for (let i = 0; i < 160; i++) pieces.push({ x: cv.width / 2 + (Math.random() - .5) * 200, y: cv.height / 2, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, w: 6 + Math.random() * 8, h: 4 + Math.random() * 6, c: colors[i % colors.length], a: Math.random() * Math.PI, va: (Math.random() - .5) * .3, life: 90 + Math.random() * 40 });
+  if (!raf) tick();
+}
+function tick() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  pieces = pieces.filter(p => p.life > 0 && p.y < cv.height + 20);
+  pieces.forEach(p => { p.vy += .35; p.x += p.vx; p.y += p.vy; p.vx *= .99; p.a += p.va; p.life--; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.globalAlpha = Math.min(1, p.life / 30); ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore(); });
+  raf = pieces.length ? requestAnimationFrame(tick) : (ctx.clearRect(0, 0, cv.width, cv.height), null);
+}
+
+/* ---------- export (all boards) ---------- */
 function csvCell(s) { s = String(s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function toCsv() {
-  const rows = [['Category', 'Difficulty', 'Value', 'Clue', 'Answer']];
-  DATA.forEach(c => c.clues.forEach((k, i) => rows.push([c.category, i + 1, k.value, k.q, k.a])));
+  const rows = [['Board', 'Category', 'Wild card', 'Difficulty', 'Value', 'Clue', 'Answer']];
+  BOARDS.forEach(b => b.categories.forEach(c => c.clues.forEach((k, i) => rows.push([b.title, c.name, c.wild ? 'yes' : 'no', i + 1, VALUES[i], k.q, k.a]))));
   return rows.map(r => r.map(csvCell).join(',')).join('\n');
 }
-function toJson() { return JSON.stringify(DATA, null, 2); }
+function toJson() { return JSON.stringify(BOARDS.map(b => ({ board: b.title, categories: b.categories.map(c => ({ name: c.name, wild: !!c.wild, clues: c.clues.map((k, i) => ({ value: VALUES[i], clue: k.q, answer: k.a })) })) })), null, 2); }
 function toText() {
-  return DATA.map(c => c.category.toUpperCase() + '\n' + c.clues.map(k => '  $' + k.value + ' — ' + k.q + '\n       ' + k.a).join('\n')).join('\n\n');
+  return BOARDS.map(b => '=== ' + b.title.toUpperCase() + ' ===\n\n' + b.categories.map(c => c.name.toUpperCase() + (c.wild ? ' (wild card)' : '') + '\n' + c.clues.map((k, i) => '  $' + VALUES[i] + ' — ' + k.q + '\n       ' + k.a).join('\n')).join('\n\n')).join('\n\n\n');
 }
-function showToast(msg) {
-  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
-  setTimeout(() => t.remove(), 1800);
-}
+function showToast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); }
 function exportAs(fn, label) {
-  const out = document.getElementById('exOut'); const text = fn(); out.value = text;
+  const out = $('exOut'), text = fn(); out.value = text;
   const fallback = () => { out.focus(); out.select(); showToast(label + ' shown below; select and copy'); };
   try { navigator.clipboard.writeText(text).then(() => showToast(label + ' copied'), fallback); } catch (e) { fallback(); }
 }
-document.getElementById('exCsv').addEventListener('click', () => exportAs(toCsv, 'CSV'));
-document.getElementById('exJson').addEventListener('click', () => exportAs(toJson, 'JSON'));
-document.getElementById('exText').addEventListener('click', () => exportAs(toText, 'Plain text'));
-document.getElementById('exToggle').addEventListener('click', () => {
-  const t = document.getElementById('exTools'); t.hidden = !t.hidden;
-  document.getElementById('exToggle').textContent = t.hidden ? 'Show export tools' : 'Hide export tools';
-  if (t.hidden) document.getElementById('exOut').value = '';
+$('exCsv').addEventListener('click', () => exportAs(toCsv, 'CSV'));
+$('exJson').addEventListener('click', () => exportAs(toJson, 'JSON'));
+$('exText').addEventListener('click', () => exportAs(toText, 'Plain text'));
+$('exToggle').addEventListener('click', () => {
+  const t = $('exTools'); t.hidden = !t.hidden;
+  $('exToggle').textContent = t.hidden ? 'Show export tools' : 'Hide export tools';
+  if (t.hidden) $('exOut').value = '';
 });
 
-renderBoard(); renderTeams();
+/* ---------- boot ---------- */
+if (boardId) startBoard(boardId); else showPicker();
 </script>
 </body>
 </html>
