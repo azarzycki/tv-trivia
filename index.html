@@ -176,6 +176,9 @@
     .chip .s { font-size: clamp(1.4rem, 3.4vh, 2.2rem); }
     .chip .n { font-size: clamp(.9rem, 2vh, 1.2rem); }
   }
+  .grecaptcha-badge { visibility: hidden; }
+  .rc-note { font-size: .7rem; color: var(--muted); opacity: .7; }
+  .rc-note a { color: inherit; }
 </style>
 </head>
 <body>
@@ -253,6 +256,7 @@
       </section>
     </div>
     <div class="actions" style="justify-content:center; margin-top:16px"><button class="small" id="closeTeams">Back to the board</button></div>
+    <p class="rc-note" style="text-align:center; margin:10px 0 0">Buzzers are protected by reCAPTCHA; the Google <a href="https://policies.google.com/privacy">Privacy Policy</a> and <a href="https://policies.google.com/terms">Terms of Service</a> apply.</p>
   </div>
 </div>
 
@@ -273,6 +277,7 @@
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
@@ -706,7 +711,23 @@ $('exToggle').addEventListener('click', () => {
 
 /* ---------- phone buzzers (Firebase Realtime Database; optional, page works without it) ---------- */
 const buzz = (() => {
-  const DB_URL = 'https://to-trivia-default-rtdb.firebaseio.com';
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyA-SnfxmXkksrwPJZJY8-GTFLQGLmGkc10",
+    authDomain: "to-trivia.firebaseapp.com",
+    databaseURL: "https://to-trivia-default-rtdb.firebaseio.com",
+    projectId: "to-trivia",
+    storageBucket: "to-trivia.firebasestorage.app",
+    messagingSenderId: "80104918216",
+    appId: "1:80104918216:web:dc89dd9e9118139f3b29fd"
+  };
+  const RECAPTCHA_SITE_KEY = "";   // App Check: paste the reCAPTCHA v3 site key here to enable
+  function initFirebase() {
+    const app = firebase.initializeApp(FIREBASE_CONFIG);
+    if (RECAPTCHA_SITE_KEY && firebase.appCheck) {
+      try { firebase.appCheck().activate(RECAPTCHA_SITE_KEY, true); } catch (e) {}
+    }
+    return app;
+  }
   const BUZZ_URL = location.origin + location.pathname.replace(/[^/]*$/, '') + 'buzz/';
   let db = null, ref = null, code = null, players = {}, enabled = false, lastSynced = null;
   const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -714,7 +735,7 @@ const buzz = (() => {
 
   function start() {
     if (!window.firebase) return;
-    try { firebase.initializeApp({ databaseURL: DB_URL }); db = firebase.database(); } catch (e) { return; }
+    try { initFirebase(); db = firebase.database(); } catch (e) { return; }
     try { code = localStorage.getItem('tv-trivia-room'); } catch (e) {}
     if (!code) code = newCode();
     let opened = false;

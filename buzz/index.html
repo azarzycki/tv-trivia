@@ -12,7 +12,7 @@
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); display: grid; grid-template-rows: auto 1fr auto; gap: 16px; overflow: hidden; -webkit-user-select: none; user-select: none; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); display: grid; grid-template-rows: auto 1fr auto auto; gap: 16px; overflow: hidden; -webkit-user-select: none; user-select: none; }
   h1 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .05em; color: var(--gold); font-size: 1.4rem; margin: 0; }
   .muted { color: var(--muted); font-size: .9rem; margin: 0; }
   .card { background: var(--board); border: 2px solid var(--gold); padding: 18px; display: grid; gap: 12px; align-content: start; }
@@ -45,6 +45,9 @@
   .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .foot button { background: none; border: 1px solid var(--tile-hi); color: var(--muted); padding: 8px 12px; font-size: .9rem; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  .grecaptcha-badge { visibility: hidden; }
+  .rc-note { font-size: .7rem; color: var(--muted); opacity: .7; }
+  .rc-note a { color: inherit; }
 </style>
 </head>
 <body>
@@ -69,15 +72,33 @@
     </div>
   </section>
 
+  <p class="rc-note" style="text-align:center; margin:0">Protected by reCAPTCHA; the Google <a href="https://policies.google.com/privacy">Privacy Policy</a> and <a href="https://policies.google.com/terms">Terms of Service</a> apply.</p>
   <footer class="foot">
     <span class="muted" id="conn">Connecting…</span>
     <button id="leave" hidden>Leave</button>
   </footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
-const DB_URL = 'https://to-trivia-default-rtdb.firebaseio.com';
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA-SnfxmXkksrwPJZJY8-GTFLQGLmGkc10",
+  authDomain: "to-trivia.firebaseapp.com",
+  databaseURL: "https://to-trivia-default-rtdb.firebaseio.com",
+  projectId: "to-trivia",
+  storageBucket: "to-trivia.firebasestorage.app",
+  messagingSenderId: "80104918216",
+  appId: "1:80104918216:web:dc89dd9e9118139f3b29fd"
+};
+const RECAPTCHA_SITE_KEY = "";   // App Check: paste the reCAPTCHA v3 site key here to enable
+function initFirebase() {
+  const app = firebase.initializeApp(FIREBASE_CONFIG);
+  if (RECAPTCHA_SITE_KEY && firebase.appCheck) {
+    try { firebase.appCheck().activate(RECAPTCHA_SITE_KEY, true); } catch (e) {}
+  }
+  return app;
+}
 const $ = id => document.getElementById(id);
 let db, roomRef, pid, roomCode, myName, myTeam, state = null, teamsList = [];
 try { pid = localStorage.getItem('buzz-pid'); } catch (e) {}
@@ -85,7 +106,7 @@ if (!pid) { pid = Math.random().toString(36).slice(2, 10); try { localStorage.se
 
 function init() {
   if (!window.firebase) { $('conn').textContent = 'Could not load the buzzer service. Check your connection and reload.'; $('joinBtn').disabled = true; return; }
-  firebase.initializeApp({ databaseURL: DB_URL });
+  initFirebase();
   db = firebase.database();
   db.ref('.info/connected').on('value', s => { $('conn').textContent = s.val() ? 'Connected' : 'Reconnecting…'; });
   const params = new URLSearchParams(location.search);
