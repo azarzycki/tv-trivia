@@ -54,7 +54,7 @@
     <label>Room code<input class="code" id="room" maxlength="4" autocomplete="off" autocapitalize="characters" inputmode="text" placeholder="ABCD"></label>
     <label>Your name<input id="name" maxlength="20" autocomplete="nickname" placeholder="Andy"></label>
     <label>Team<select id="team"><option value="">Pick a team…</option></select></label>
-    <label id="teamNameRow" hidden>Team name <span class="muted" style="font-weight:400">(shows on the TV)</span><input id="teamName" maxlength="24" autocomplete="off" placeholder="The Raccoons"></label>
+    <label id="teamNameRow" hidden>Team name <span class="muted" style="font-weight:400">(shows on the TV)</span><input id="teamName" maxlength="20" autocomplete="off" placeholder="The Raccoons"></label>
     <button class="btn gold" id="joinBtn">Join</button>
     <p class="err" id="err"></p>
   </section>
@@ -65,7 +65,7 @@
     <div class="me" id="me"></div>
     <div class="rename" id="renameRow">
       <button class="btn" id="renameBtn">Rename team</button>
-      <div class="renameBox" id="renameBox" hidden><input id="renameInput" maxlength="24" autocomplete="off" aria-label="Team name"><button class="btn gold" id="renameSave">Save</button></div>
+      <div class="renameBox" id="renameBox" hidden><input id="renameInput" maxlength="20" autocomplete="off" aria-label="Team name"><button class="btn gold" id="renameSave">Save</button></div>
     </div>
   </section>
 
@@ -116,8 +116,8 @@ $('joinBtn').addEventListener('click', async () => {
   const me = roomRef.child('players/' + pid);
   me.set({ name: myName, team: Number(myTeam), joined: firebase.database.ServerValue.TIMESTAMP });
   me.onDisconnect().remove();
-  const tn = $('teamName').value.trim();
-  if (tn && tn !== $('team').options[$('team').selectedIndex].textContent) roomRef.child('teams/' + myTeam).set(tn);
+  const tn = cleanName($('teamName').value);
+  if (tn && tn !== $('team').options[$('team').selectedIndex].textContent) { lastRename = Date.now(); roomRef.child('teams/' + myTeam).set(tn); }
   $('join').hidden = true; $('game').hidden = false; $('leave').hidden = false;
   $('hdrSub').textContent = 'Room ' + roomCode;
   roomRef.child('teams').on('value', s => { teamsList = s.val() || []; $('me').innerHTML = ''; const b = document.createElement('b'); b.textContent = myName; $('me').append(b, ' · ' + (teamsList[myTeam] || 'Team')); });
@@ -126,6 +126,15 @@ $('joinBtn').addEventListener('click', async () => {
   roomRef.child('buzzes/' + pid).on('value', s => { buzzed = s.exists(); render(); });
 });
 let winner = null, buzzed = false, lastState = null;
+const NAME_MAX = 20, RENAME_COOLDOWN = 10000; let lastRename = 0;
+function cleanName(v) { return v.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX); }
+function setTeamName(v) {
+  v = cleanName(v); if (!v) return false;
+  const now = Date.now(), wait = RENAME_COOLDOWN - (now - lastRename);
+  if (wait > 0) { $('status').textContent = 'Wait ' + Math.ceil(wait / 1000) + 's before renaming again'; setTimeout(render, 1500); return false; }
+  if (v === (teamsList[myTeam] || '')) return true;
+  lastRename = now; roomRef.child('teams/' + myTeam).set(v); return true;
+}
 function render() {
   const b = $('buzz'), st = $('status');
   b.classList.remove('won', 'armed'); st.className = 'status';
@@ -145,7 +154,7 @@ $('buzz').addEventListener('click', () => {
   roomRef.child('buzzes/' + pid).set({ name: myName, team: Number(myTeam), at: firebase.database.ServerValue.TIMESTAMP });
 });
 $('renameBtn').addEventListener('click', () => { $('renameBox').hidden = false; $('renameBtn').hidden = true; $('renameInput').value = teamsList[myTeam] || ''; $('renameInput').focus(); $('renameInput').select(); });
-function saveRename() { const v = $('renameInput').value.trim(); if (v) roomRef.child('teams/' + myTeam).set(v); $('renameBox').hidden = true; $('renameBtn').hidden = false; vibrate(20); }
+function saveRename() { if (setTeamName($('renameInput').value)) { $('renameBox').hidden = true; $('renameBtn').hidden = false; vibrate(20); } }
 $('renameSave').addEventListener('click', saveRename);
 $('renameInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveRename(); } if (e.key === 'Escape') { $('renameBox').hidden = true; $('renameBtn').hidden = false; } });
 $('leave').addEventListener('click', () => { if (roomRef) roomRef.child('players/' + pid).remove(); location.href = location.pathname; });

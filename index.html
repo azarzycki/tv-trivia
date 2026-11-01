@@ -733,11 +733,19 @@ const buzz = (() => {
       try { const q = qrcode(0, 'M'); q.addData(BUZZ_URL + '?room=' + code); q.make(); $('qr').innerHTML = q.createSvgTag({ scalable: true, margin: 0 }); } catch (e) {}
       ref.child('players').on('value', s => { players = s.val() || {}; renderPlayers(); }, disable);
       // phones may rename their team by writing teams/<index>; adopt those names here
+      const renamedAt = {};   // per-team throttle: at most one adopted rename every 10 s, 20 chars max
       ref.child('teams').on('value', s => {
         const names = s.val(); if (!Array.isArray(names)) return;
-        let changed = false;
-        names.forEach((n, i) => { if (teams[i] && typeof n === 'string' && n.trim() && teams[i].name !== n) { teams[i].name = n.slice(0, 24); changed = true; } });
-        if (changed) { lastSynced = JSON.stringify(teams.map(t => t.name)); save(); renderTeams(); }
+        let changed = false, now = Date.now();
+        names.forEach((n, i) => {
+          if (!teams[i] || typeof n !== 'string') return;
+          const v = n.replace(/\s+/g, ' ').trim().slice(0, 20);
+          if (!v || teams[i].name === v) return;
+          if (now - (renamedAt[i] || 0) < 10000) return;
+          renamedAt[i] = now; teams[i].name = v; changed = true;
+        });
+        if (changed) { save(); renderTeams(); }
+        else { const j = JSON.stringify(teams.map(t => t.name)); if (JSON.stringify(names) !== j) { lastSynced = null; ref.child('teams').set(JSON.parse(j)); lastSynced = j; } }
       }, disable);
       ref.child('buzzes').on('value', s => onBuzzes(s.val() || {}), disable);
     }).catch(disable);

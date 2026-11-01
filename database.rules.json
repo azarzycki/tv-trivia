@@ -6,7 +6,7 @@
       "$room": {
         ".read": "$room.matches(/^[A-Z0-9]{4}$/)",
         ".write": "$room.matches(/^[A-Z0-9]{4}$/)",
-        "teams": { ".validate": "newData.hasChildren() || newData.val() == null" },
+        "teams": { ".validate": "newData.hasChildren() || newData.val() == null", "$i": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20" } },
         "state": { ".validate": "newData.val() == 'idle' || newData.val() == 'armed' || newData.val() == 'locked'" },
         "clue": { ".validate": "newData.isString() && newData.val().length < 80" },
         "players": { "$pid": { ".validate": "newData.hasChildren(['name','team']) && newData.child('name').isString() && newData.child('name').val().length <= 20 && newData.child('team').isNumber()" } },
