@@ -39,6 +39,9 @@
   @keyframes breathe { to { box-shadow: 0 18px 0 #6b150b, 0 30px 50px rgba(0,0,0,.6), 0 0 60px rgba(224,68,47,.9); } }
   .me { text-align: center; font-size: .95rem; color: var(--muted); }
   .me b { color: var(--fg); }
+  .rename { display: grid; gap: 8px; justify-items: center; }
+  .rename .btn { padding: 8px 14px; font-size: .95rem; }
+  .renameBox { display: grid; grid-template-columns: 1fr auto; gap: 8px; width: 100%; max-width: 420px; }
   .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .foot button { background: none; border: 1px solid var(--tile-hi); color: var(--muted); padding: 8px 12px; font-size: .9rem; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -51,6 +54,7 @@
     <label>Room code<input class="code" id="room" maxlength="4" autocomplete="off" autocapitalize="characters" inputmode="text" placeholder="ABCD"></label>
     <label>Your name<input id="name" maxlength="20" autocomplete="nickname" placeholder="Andy"></label>
     <label>Team<select id="team"><option value="">Pick a team…</option></select></label>
+    <label id="teamNameRow" hidden>Team name <span class="muted" style="font-weight:400">(shows on the TV)</span><input id="teamName" maxlength="24" autocomplete="off" placeholder="The Raccoons"></label>
     <button class="btn gold" id="joinBtn">Join</button>
     <p class="err" id="err"></p>
   </section>
@@ -59,6 +63,10 @@
     <div class="status" id="status">Waiting for a question…</div>
     <button class="buzz" id="buzz" disabled>Buzz</button>
     <div class="me" id="me"></div>
+    <div class="rename" id="renameRow">
+      <button class="btn" id="renameBtn">Rename team</button>
+      <div class="renameBox" id="renameBox" hidden><input id="renameInput" maxlength="24" autocomplete="off" aria-label="Team name"><button class="btn gold" id="renameSave">Save</button></div>
+    </div>
   </section>
 
   <footer class="foot">
@@ -84,6 +92,7 @@ function init() {
   const r = (params.get('room') || '').toUpperCase();
   try { $('room').value = r || localStorage.getItem('buzz-room') || ''; $('name').value = localStorage.getItem('buzz-name') || ''; } catch (e) { $('room').value = r; }
   if ($('room').value.length === 4) loadTeams($('room').value);
+  $('team').addEventListener('change', () => { const i = $('team').value; $('teamNameRow').hidden = i === ''; if (i !== '') $('teamName').value = $('team').options[$('team').selectedIndex].textContent; });
   $('room').addEventListener('input', () => { $('room').value = $('room').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if ($('room').value.length === 4) loadTeams($('room').value); });
 }
 function loadTeams(code) {
@@ -91,6 +100,7 @@ function loadTeams(code) {
     const t = s.val() || [], sel = $('team'); sel.innerHTML = '<option value="">Pick a team…</option>';
     t.forEach((name, i) => { const o = document.createElement('option'); o.value = i; o.textContent = name; sel.appendChild(o); });
     $('err').textContent = t.length ? '' : 'No game found with that code. Check the TV.';
+    $('teamNameRow').hidden = true;
   }).catch(() => { $('err').textContent = 'Could not reach that room.'; });
 }
 
@@ -106,6 +116,8 @@ $('joinBtn').addEventListener('click', async () => {
   const me = roomRef.child('players/' + pid);
   me.set({ name: myName, team: Number(myTeam), joined: firebase.database.ServerValue.TIMESTAMP });
   me.onDisconnect().remove();
+  const tn = $('teamName').value.trim();
+  if (tn && tn !== $('team').options[$('team').selectedIndex].textContent) roomRef.child('teams/' + myTeam).set(tn);
   $('join').hidden = true; $('game').hidden = false; $('leave').hidden = false;
   $('hdrSub').textContent = 'Room ' + roomCode;
   roomRef.child('teams').on('value', s => { teamsList = s.val() || []; $('me').innerHTML = ''; const b = document.createElement('b'); b.textContent = myName; $('me').append(b, ' · ' + (teamsList[myTeam] || 'Team')); });
@@ -132,6 +144,10 @@ $('buzz').addEventListener('click', () => {
   buzzed = true; render(); vibrate(30);
   roomRef.child('buzzes/' + pid).set({ name: myName, team: Number(myTeam), at: firebase.database.ServerValue.TIMESTAMP });
 });
+$('renameBtn').addEventListener('click', () => { $('renameBox').hidden = false; $('renameBtn').hidden = true; $('renameInput').value = teamsList[myTeam] || ''; $('renameInput').focus(); $('renameInput').select(); });
+function saveRename() { const v = $('renameInput').value.trim(); if (v) roomRef.child('teams/' + myTeam).set(v); $('renameBox').hidden = true; $('renameBtn').hidden = false; vibrate(20); }
+$('renameSave').addEventListener('click', saveRename);
+$('renameInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveRename(); } if (e.key === 'Escape') { $('renameBox').hidden = true; $('renameBtn').hidden = false; } });
 $('leave').addEventListener('click', () => { if (roomRef) roomRef.child('players/' + pid).remove(); location.href = location.pathname; });
 init();
 </script>

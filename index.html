@@ -212,7 +212,7 @@
       <div>
         <h2 style="margin:0 0 6px; font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: .95rem; color: var(--muted)">Buzz in from your phone</h2>
         <div class="bigcode" id="bigCode"></div>
-        <p class="hint" style="font-size:1.05rem">Scan the code, or open <b id="buzzUrl"></b> and enter the room code. Pick your team, then buzz when a clue is up. First buzz wins; the TV highlights that team's award buttons.</p>
+        <p class="hint" style="font-size:1.05rem">Scan the code, or open <b id="buzzUrl"></b> and enter the room code. Pick your team and give it a name from your phone, then buzz when a clue is up. First buzz wins; the TV highlights that team's award buttons.</p>
         <div class="players" id="players"><span class="hint">Nobody has joined yet.</span></div>
         <div class="actions"><button class="small" id="newRoom">New room code</button><button class="small" id="closeBuzz">Back to the board</button></div>
       </div>
@@ -232,7 +232,7 @@
           <button class="small" id="resetScores">Reset scores</button>
           <button class="small" id="resetBoard">Reset this board</button>
         </div>
-        <p class="hint">Up to four teams. Select a name to rename it. Team names are remembered on this device. Keep the scores running into a second board and the points double with a Daily Double hidden on the board; a third board doubles again with two.</p>
+        <p class="hint">Up to four teams. Name teams from a phone (see Buzzers) to avoid the TV keyboard; selecting a name here also works. Team names are remembered on this device. Keep the scores running into a second board and the points double with a Daily Double hidden on the board; a third board doubles again with two.</p>
       </section>
 
       <section class="panel">
@@ -708,7 +708,7 @@ $('exToggle').addEventListener('click', () => {
 const buzz = (() => {
   const DB_URL = 'https://to-trivia-default-rtdb.firebaseio.com';
   const BUZZ_URL = location.origin + location.pathname.replace(/[^/]*$/, '') + 'buzz/';
-  let db = null, ref = null, code = null, players = {}, enabled = false;
+  let db = null, ref = null, code = null, players = {}, enabled = false, lastSynced = null;
   const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const newCode = () => Array.from({ length: 4 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join('');
 
@@ -732,6 +732,13 @@ const buzz = (() => {
       $('roomChip').hidden = false; $('openBuzz').hidden = false;
       try { const q = qrcode(0, 'M'); q.addData(BUZZ_URL + '?room=' + code); q.make(); $('qr').innerHTML = q.createSvgTag({ scalable: true, margin: 0 }); } catch (e) {}
       ref.child('players').on('value', s => { players = s.val() || {}; renderPlayers(); }, disable);
+      // phones may rename their team by writing teams/<index>; adopt those names here
+      ref.child('teams').on('value', s => {
+        const names = s.val(); if (!Array.isArray(names)) return;
+        let changed = false;
+        names.forEach((n, i) => { if (teams[i] && typeof n === 'string' && n.trim() && teams[i].name !== n) { teams[i].name = n.slice(0, 24); changed = true; } });
+        if (changed) { lastSynced = JSON.stringify(teams.map(t => t.name)); save(); renderTeams(); }
+      }, disable);
       ref.child('buzzes').on('value', s => onBuzzes(s.val() || {}), disable);
     }).catch(disable);
   }
@@ -756,7 +763,7 @@ const buzz = (() => {
   }
   return {
     start,
-    syncTeams() { if (ref && enabled) { ref.child('teams').set(teams.map(t => t.name)); renderPlayers(); } },
+    syncTeams() { if (ref && enabled) { const j = JSON.stringify(teams.map(t => t.name)); if (j !== lastSynced) { lastSynced = j; ref.child('teams').set(JSON.parse(j)); } renderPlayers(); } },
     arm(label) {
       const line = $('cBuzz'); $('cRearm').hidden = true;
       if (!ref || !enabled) { line.hidden = true; return; }
