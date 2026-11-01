@@ -91,7 +91,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "80104918216",
   appId: "1:80104918216:web:dc89dd9e9118139f3b29fd"
 };
-const RECAPTCHA_SITE_KEY = "";   // App Check: paste the reCAPTCHA v3 site key here to enable
+const RECAPTCHA_SITE_KEY = "6LevvAouAAAAAC8abbOt62vfjQNZNvwb4y-YJTMt";   // App Check: paste the reCAPTCHA v3 site key here to enable
 function initFirebase() {
   const app = firebase.initializeApp(FIREBASE_CONFIG);
   if (RECAPTCHA_SITE_KEY && firebase.appCheck) {
