@@ -138,6 +138,22 @@
   .award button.neg { border-color: var(--accent); color: #ffb4a8; }
   .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--gold); color: #1a1a1a; padding: 8px 16px; font-weight: 600; z-index: 30; animation: popin .3s; }
   #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 25; }
+  .roomchip { font-family: var(--font-display); letter-spacing: .25em; font-size: 1.1rem; color: var(--gold-2); background: rgba(0,0,0,.35); border: 1px solid var(--gold); padding: 4px 10px 4px 14px; }
+  .roomchip small { font-family: var(--font-body); letter-spacing: .08em; font-size: .7rem; color: var(--muted); margin-right: 8px; }
+  .buzzpanel { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start; }
+  .buzzpanel .qr { background: #fff; padding: 12px; width: 236px; height: 236px; }
+  .buzzpanel .qr svg { width: 100%; height: 100%; display: block; }
+  .bigcode { font-family: var(--font-display); font-size: 3rem; letter-spacing: .3em; color: var(--gold); line-height: 1; }
+  .players { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .players span { background: var(--bg); border: 1px solid var(--tile-hi); padding: 4px 10px; font-size: .95rem; }
+  .players span b { color: var(--gold); font-weight: 600; }
+  .buzzin { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .1em; font-size: clamp(1.1rem, 3vw, 1.8rem); color: var(--gold-2); min-height: 1.3em; }
+  .buzzin.hit { animation: popin .35s; text-shadow: 0 0 24px rgba(242,193,78,.9); }
+  .buzzin .who { color: var(--fg); }
+  .award button.hot { background: var(--gold); color: #1a1a1a; box-shadow: 0 0 18px rgba(242,193,78,.8); }
+  .armed-dot { display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--accent); margin-right: .4em; animation: blink 1s infinite alternate; vertical-align: middle; }
+  @keyframes blink { to { opacity: .2; } }
+  @media (max-width: 640px) { .buzzpanel { grid-template-columns: 1fr; } }
   .round { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; color: var(--gold-2); background: rgba(0,0,0,.35); border: 1px solid var(--gold); padding: 3px 10px; margin-left: 10px; }
   .round.x { animation: popin .5s; }
   .clue.dd { border-color: var(--gold-2); background: linear-gradient(160deg, #6d1d9c, #b3261e 60%); box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 90px rgba(242,193,78,.55); }
@@ -172,6 +188,8 @@
     </div>
     <div class="strip" id="scoreStrip" hidden></div>
     <div class="actions hdr" id="hdrActions" hidden>
+      <span class="roomchip" id="roomChip" hidden><small>ROOM</small><span id="roomCodeTxt"></span></span>
+      <button class="small" id="openBuzz" hidden>Buzzers</button>
       <button class="small" id="openTeams">Teams</button>
       <button class="small" id="changeBoard">Change board</button>
     </div>
@@ -185,6 +203,21 @@
     <div class="boardhead"><span class="boardname" id="boardName"></span><span class="round" id="roundBadge" hidden></span></div>
     <div class="board" id="board"></div>
   </section>
+</div>
+
+<div class="overlay" id="buzzOverlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Phone buzzers">
+    <div class="buzzpanel">
+      <div class="qr" id="qr"></div>
+      <div>
+        <h2 style="margin:0 0 6px; font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: .95rem; color: var(--muted)">Buzz in from your phone</h2>
+        <div class="bigcode" id="bigCode"></div>
+        <p class="hint" style="font-size:1.05rem">Scan the code, or open <b id="buzzUrl"></b> and enter the room code. Pick your team, then buzz when a clue is up. First buzz wins; the TV highlights that team's award buttons.</p>
+        <div class="players" id="players"><span class="hint">Nobody has joined yet.</span></div>
+        <div class="actions"><button class="small" id="newRoom">New room code</button><button class="small" id="closeBuzz">Back to the board</button></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="teamsOverlay" hidden>
@@ -229,14 +262,19 @@
     <div class="meta" id="cMeta"></div>
     <div class="q" id="cQ"></div>
     <div class="a" id="cA" hidden></div>
+    <div class="buzzin" id="cBuzz" hidden></div>
     <div class="award" id="cAward"></div>
     <div class="actions" style="justify-content:center">
       <button class="small" id="cReveal">Reveal answer</button>
+      <button class="small" id="cRearm" hidden>Re-arm buzzers</button>
       <button class="small" id="cClose">Close</button>
     </div>
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 /* ---------- question data: 6 boards, 5 categories each (4 themed + 1 wild card), $100-$500 ---------- */
 const BOARDS = [
@@ -546,6 +584,7 @@ function renderStrip(bumpIndex) {
 }
 function renderTeams(bumpIndex) {
   renderStrip(bumpIndex);
+  if (typeof buzz !== 'undefined') buzz.syncTeams();
   const el = $('teams'); el.innerHTML = '';
   const top = Math.max(...teams.map(t => t.score));
   teams.forEach((t, i) => {
@@ -574,6 +613,7 @@ function editName(i, row, nameBtn) {
 let current = null;
 function openClue(ci, r) {
   const c = board().categories[ci], clue = c.clues[r], key = ci + '-' + r;
+  buzz.arm(c.name + ' $' + (VALUES[r] * multiplier()));
   const dd = ddKeys().has(key), value = VALUES[r] * multiplier() * (dd ? 2 : 1);
   current = { ci, r };
   $('cDD').hidden = !dd;
@@ -583,9 +623,9 @@ function openClue(ci, r) {
   const a = $('cA'); a.textContent = clue.a; a.hidden = true;
   const award = $('cAward'); award.innerHTML = '';
   teams.forEach((t, i) => {
-    const win = document.createElement('button'); win.className = 'small'; win.textContent = t.name + ' +' + value;
+    const win = document.createElement('button'); win.className = 'small'; win.textContent = t.name + ' +' + value; win.dataset.team = i;
     win.addEventListener('click', () => { t.score += value; confetti(); renderTeams(i); save(); finish(); });
-    const lose = document.createElement('button'); lose.className = 'small neg'; lose.textContent = t.name + ' −' + value;
+    const lose = document.createElement('button'); lose.className = 'small neg'; lose.textContent = t.name + ' −' + value; lose.dataset.team = i;
     lose.addEventListener('click', () => { t.score -= value; renderTeams(i); save(); const card = $('clueCard'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); });
     award.append(win, lose);
   });
@@ -598,6 +638,7 @@ function finish() {
   let key = null;
   if (current) { key = current.ci + '-' + current.r; const s = usedSet(); s.add(key); usedByBoard[boardId] = [...s]; }
   $('overlay').hidden = true; current = null;
+  buzz.idle();
   document.querySelector('.wrap').removeAttribute('inert');
   // mark the tile in place (no rebuild) and put focus back on it, so the D-pad position doesn't jump
   const tile = key && document.querySelector('.tile[data-key="' + key + '"]');
@@ -606,7 +647,7 @@ function finish() {
 }
 $('cReveal').addEventListener('click', () => { $('cA').hidden = false; });
 $('cClose').addEventListener('click', finish);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('overlay').hidden) finish(); else if (!$('teamsOverlay').hidden) closeTeams(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('overlay').hidden) finish(); else if (!$('teamsOverlay').hidden) closeTeams(); else if (!$('buzzOverlay').hidden) closeBuzz(); } });
 
 /* ---------- teams panel ---------- */
 function openTeams() { $('teamsOverlay').hidden = false; document.querySelector('.wrap').setAttribute('inert', ''); $('closeTeams').focus(); }
@@ -662,6 +703,80 @@ $('exToggle').addEventListener('click', () => {
   $('exToggle').textContent = t.hidden ? 'Show export tools' : 'Hide export tools';
   if (t.hidden) $('exOut').value = '';
 });
+
+/* ---------- phone buzzers (Firebase Realtime Database; optional, page works without it) ---------- */
+const buzz = (() => {
+  const DB_URL = 'https://to-trivia-default-rtdb.firebaseio.com';
+  const BUZZ_URL = location.origin + location.pathname.replace(/[^/]*$/, '') + 'buzz/';
+  let db = null, ref = null, code = null, players = {}, enabled = false;
+  const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const newCode = () => Array.from({ length: 4 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join('');
+
+  function start() {
+    if (!window.firebase) return;
+    try { firebase.initializeApp({ databaseURL: DB_URL }); db = firebase.database(); } catch (e) { return; }
+    try { code = localStorage.getItem('tv-trivia-room'); } catch (e) {}
+    if (!code) code = newCode();
+    let opened = false;
+    db.ref('.info/connected').on('value', s => { if (s.val() && !opened) { opened = true; openRoom(); } });
+  }
+  function disable() { enabled = false; $('roomChip').hidden = true; $('openBuzz').hidden = true; }
+  function openRoom() {
+    if (ref) { ref.child('players').off(); ref.child('buzzes').off(); }
+    ref = db.ref('rooms/' + code);
+    // The write doubles as the permission check: if the rules aren't set, the buzzer UI stays hidden and the game plays as before.
+    ref.update({ teams: teams.map(t => t.name), state: 'idle', winner: null, buzzes: null, created: firebase.database.ServerValue.TIMESTAMP }).then(() => {
+      enabled = true;
+      try { localStorage.setItem('tv-trivia-room', code); } catch (e) {}
+      $('roomCodeTxt').textContent = code; $('bigCode').textContent = code; $('buzzUrl').textContent = BUZZ_URL.replace(/^https?:\/\//, '');
+      $('roomChip').hidden = false; $('openBuzz').hidden = false;
+      try { const q = qrcode(0, 'M'); q.addData(BUZZ_URL + '?room=' + code); q.make(); $('qr').innerHTML = q.createSvgTag({ scalable: true, margin: 0 }); } catch (e) {}
+      ref.child('players').on('value', s => { players = s.val() || {}; renderPlayers(); }, disable);
+      ref.child('buzzes').on('value', s => onBuzzes(s.val() || {}), disable);
+    }).catch(disable);
+  }
+  function renderPlayers() {
+    const el = $('players'); el.innerHTML = '';
+    const list = Object.values(players);
+    if (!list.length) { const h = document.createElement('span'); h.className = 'hint'; h.textContent = 'Nobody has joined yet.'; el.appendChild(h); return; }
+    list.sort((a, b) => a.team - b.team || a.joined - b.joined).forEach(p => { const sp = document.createElement('span'); const b = document.createElement('b'); b.textContent = p.name; sp.append(b, ' · ' + (teams[p.team] ? teams[p.team].name : 'Team')); el.appendChild(sp); });
+  }
+  let armed = false, locked = false;
+  function onBuzzes(all) {
+    if (!armed || locked) return;
+    const list = Object.entries(all).map(([pid, b]) => ({ pid, ...b })).filter(b => b.at).sort((a, b) => a.at - b.at);
+    if (!list.length) return;
+    const w = list[0]; locked = true;
+    ref.update({ state: 'locked', winner: { pid: w.pid, name: w.name, team: w.team, at: w.at } });
+    const line = $('cBuzz'); line.hidden = false; line.innerHTML = ''; const who = document.createElement('span'); who.className = 'who'; who.textContent = w.name; line.append(who, ' buzzed first · ' + (teams[w.team] ? teams[w.team].name : 'Team'));
+    line.classList.remove('hit'); void line.offsetWidth; line.classList.add('hit');
+    document.querySelectorAll('#cAward button').forEach(b => b.classList.toggle('hot', Number(b.dataset.team) === w.team));
+    const hot = document.querySelector('#cAward button.hot'); if (hot) hot.focus();
+    $('cRearm').hidden = false;
+  }
+  return {
+    start,
+    syncTeams() { if (ref && enabled) { ref.child('teams').set(teams.map(t => t.name)); renderPlayers(); } },
+    arm(label) {
+      const line = $('cBuzz'); $('cRearm').hidden = true;
+      if (!ref || !enabled) { line.hidden = true; return; }
+      armed = true; locked = false;
+      ref.update({ state: 'armed', winner: null, buzzes: null, clue: label });
+      line.hidden = false; line.innerHTML = '<span class="armed-dot"></span>Buzzers armed';
+      document.querySelectorAll('#cAward button').forEach(b => b.classList.remove('hot'));
+      $('cRearm').hidden = false;
+    },
+    rearm() { if (current) this.arm($('cMeta').textContent); },
+    idle() { armed = false; locked = false; if (ref && enabled) ref.update({ state: 'idle', winner: null, buzzes: null }); document.querySelectorAll('#cAward button').forEach(b => b.classList.remove('hot')); },
+    renew() { if (!db) return; if (ref) ref.remove(); code = newCode(); openRoom(); }
+  };
+})();
+$('cRearm').addEventListener('click', () => buzz.rearm());
+$('openBuzz').addEventListener('click', () => { $('buzzOverlay').hidden = false; document.querySelector('.wrap').setAttribute('inert', ''); $('closeBuzz').focus(); });
+function closeBuzz() { $('buzzOverlay').hidden = true; document.querySelector('.wrap').removeAttribute('inert'); $('openBuzz').focus(); }
+$('closeBuzz').addEventListener('click', closeBuzz);
+$('newRoom').addEventListener('click', () => buzz.renew());
+buzz.start();
 
 /* ---------- boot ---------- */
 if (boardId) startBoard(boardId); else showPicker();
