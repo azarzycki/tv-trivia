@@ -117,7 +117,7 @@ $('joinBtn').addEventListener('click', async () => {
   me.set({ name: myName, team: Number(myTeam), joined: firebase.database.ServerValue.TIMESTAMP });
   me.onDisconnect().remove();
   const tn = cleanName($('teamName').value);
-  if (tn && tn !== $('team').options[$('team').selectedIndex].textContent) { lastRename = Date.now(); roomRef.child('teams/' + myTeam).set(tn); }
+  if (tn && tn !== $('team').options[$('team').selectedIndex].textContent) sendRename(tn);
   $('join').hidden = true; $('game').hidden = false; $('leave').hidden = false;
   $('hdrSub').textContent = 'Room ' + roomCode;
   roomRef.child('teams').on('value', s => { teamsList = s.val() || []; $('me').innerHTML = ''; const b = document.createElement('b'); b.textContent = myName; $('me').append(b, ' · ' + (teamsList[myTeam] || 'Team')); });
@@ -128,12 +128,17 @@ $('joinBtn').addEventListener('click', async () => {
 let winner = null, buzzed = false, lastState = null;
 const NAME_MAX = 20, RENAME_COOLDOWN = 10000; let lastRename = 0;
 function cleanName(v) { return v.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX); }
+function tooSoon() { $('status').textContent = 'That team was just renamed. Wait a few seconds and try again.'; setTimeout(render, 2500); }
+function sendRename(v) {
+  // The database rule enforces the 10 s cooldown per team server-side; this just reports the rejection.
+  return roomRef.child('renames/' + myTeam).set({ name: v, at: firebase.database.ServerValue.TIMESTAMP }).then(() => { lastRename = Date.now(); return true; }).catch(() => { tooSoon(); return false; });
+}
 function setTeamName(v) {
   v = cleanName(v); if (!v) return false;
   const now = Date.now(), wait = RENAME_COOLDOWN - (now - lastRename);
   if (wait > 0) { $('status').textContent = 'Wait ' + Math.ceil(wait / 1000) + 's before renaming again'; setTimeout(render, 1500); return false; }
   if (v === (teamsList[myTeam] || '')) return true;
-  lastRename = now; roomRef.child('teams/' + myTeam).set(v); return true;
+  sendRename(v); return true;
 }
 function render() {
   const b = $('buzz'), st = $('status');

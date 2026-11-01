@@ -725,7 +725,7 @@ const buzz = (() => {
     if (ref) { ref.child('players').off(); ref.child('buzzes').off(); }
     ref = db.ref('rooms/' + code);
     // The write doubles as the permission check: if the rules aren't set, the buzzer UI stays hidden and the game plays as before.
-    ref.update({ teams: teams.map(t => t.name), state: 'idle', winner: null, buzzes: null, created: firebase.database.ServerValue.TIMESTAMP }).then(() => {
+    ref.update({ teams: teams.map(t => t.name), state: 'idle', winner: null, buzzes: null, renames: null, created: firebase.database.ServerValue.TIMESTAMP }).then(() => {
       enabled = true;
       try { localStorage.setItem('tv-trivia-room', code); } catch (e) {}
       $('roomCodeTxt').textContent = code; $('bigCode').textContent = code; $('buzzUrl').textContent = BUZZ_URL.replace(/^https?:\/\//, '');
@@ -733,19 +733,15 @@ const buzz = (() => {
       try { const q = qrcode(0, 'M'); q.addData(BUZZ_URL + '?room=' + code); q.make(); $('qr').innerHTML = q.createSvgTag({ scalable: true, margin: 0 }); } catch (e) {}
       ref.child('players').on('value', s => { players = s.val() || {}; renderPlayers(); }, disable);
       // phones may rename their team by writing teams/<index>; adopt those names here
-      const renamedAt = {};   // per-team throttle: at most one adopted rename every 10 s, 20 chars max
-      ref.child('teams').on('value', s => {
-        const names = s.val(); if (!Array.isArray(names)) return;
-        let changed = false, now = Date.now();
-        names.forEach((n, i) => {
-          if (!teams[i] || typeof n !== 'string') return;
-          const v = n.replace(/\s+/g, ' ').trim().slice(0, 20);
-          if (!v || teams[i].name === v) return;
-          if (now - (renamedAt[i] || 0) < 10000) return;
-          renamedAt[i] = now; teams[i].name = v; changed = true;
+      // Phones ask for renames at renames/<team>; the database rule throttles them (one per team per 10 s, 20 chars). The TV owns 'teams'.
+      ref.child('renames').on('value', s => {
+        const r = s.val() || {}; let changed = false;
+        Object.entries(r).forEach(([i, v]) => {
+          const t = teams[Number(i)]; if (!t || !v || typeof v.name !== 'string') return;
+          const name = v.name.replace(/\s+/g, ' ').trim().slice(0, 20);
+          if (name && t.name !== name) { t.name = name; changed = true; }
         });
         if (changed) { save(); renderTeams(); }
-        else { const j = JSON.stringify(teams.map(t => t.name)); if (JSON.stringify(names) !== j) { lastSynced = null; ref.child('teams').set(JSON.parse(j)); lastSynced = j; } }
       }, disable);
       ref.child('buzzes').on('value', s => onBuzzes(s.val() || {}), disable);
     }).catch(disable);
