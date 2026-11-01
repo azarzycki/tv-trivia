@@ -34,7 +34,7 @@
     font-family: var(--font-body);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
-    padding-block: 20px 40px;
+    padding-block: 16px 20px;
     line-height: 1.45;
     overflow-x: hidden;
   }
@@ -47,8 +47,22 @@
   body::after { background: radial-gradient(circle at 80% 70%, rgba(224,68,47,.14), transparent 25%); animation-duration: 23s; animation-direction: alternate-reverse; }
   @keyframes sweep { from { transform: translate(-6%, -4%) rotate(0deg);} to { transform: translate(6%, 5%) rotate(8deg);} }
 
-  .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
-  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; display: grid; gap: 16px; min-height: 100%; grid-template-rows: auto 1fr; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; }
+  .titleblock { display: grid; gap: 2px; }
+  .actions.hdr { margin: 0; }
+  /* score strip */
+  .strip { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; justify-content: center; }
+  .chip { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 10px; background: var(--board); border: 2px solid var(--tile-hi); padding: 6px 14px; min-width: 0; max-width: 100%; }
+  .chip .n { font-weight: 600; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14ch; }
+  .chip .s { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .chip .s.neg { color: #ffb4a8; }
+  .chip.leader { border-color: var(--gold); box-shadow: 0 0 16px rgba(242,193,78,.45); }
+  .chip.leader .s { color: var(--gold-2); }
+  .chip.bump .s { animation: bump .5s; }
+  .boardhead { display: flex; align-items: center; gap: 4px; margin-bottom: -6px; }
+  #gameView { display: grid; grid-template-rows: auto 1fr; gap: 12px; min-height: 0; }
+  .sheet { background: var(--board); border: 3px solid var(--gold); max-width: 980px; width: 100%; max-height: 92vh; overflow: auto; padding: 18px; animation: flipin .45s cubic-bezier(.2,.8,.2,1) both; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
   h1 {
     font-family: var(--font-display); font-weight: 700; font-size: clamp(1.9rem, 4.5vw, 3rem); letter-spacing: .03em; text-transform: uppercase; margin: 0; text-wrap: balance;
     background: linear-gradient(100deg, var(--gold) 0%, var(--gold-2) 30%, var(--gold) 45%, #c99a2e 60%, var(--gold-2) 80%, var(--gold) 100%);
@@ -78,11 +92,11 @@
   .pick .done { position: absolute; top: 10px; right: 12px; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); background: rgba(0,0,0,.35); padding: 3px 8px; }
 
   /* ---- board ---- */
-  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: var(--board); padding: 6px; border: 3px solid var(--gold); box-shadow: 0 0 40px rgba(242,193,78,.18), inset 0 0 40px rgba(0,0,0,.35); }
+  .board { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: auto repeat(5, 1fr); gap: 6px; min-height: 0; background: var(--board); padding: 6px; border: 3px solid var(--gold); box-shadow: 0 0 40px rgba(242,193,78,.18), inset 0 0 40px rgba(0,0,0,.35); }
   .cat { background: var(--tile); color: var(--fg); font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; font-size: clamp(.62rem, 1.6vw, 1rem); text-align: center; padding: 10px 6px; display: flex; align-items: center; justify-content: center; min-height: 64px; text-wrap: balance; }
-  .cat.wild { background: linear-gradient(135deg, #5a2a8a, #e0442f); }
+  .cat.wild { background: linear-gradient(135deg, #5a2a8a, #e0442f); flex-direction: column; gap: 2px; }
   .cat.wild small { display: block; font-size: .65em; letter-spacing: .15em; color: var(--gold-2); }
-  .tile { background: var(--tile); border: 0; color: var(--gold); font-family: var(--font-display); font-weight: 700; font-size: clamp(1.1rem, 4vw, 2.4rem); min-height: 64px; cursor: pointer; font-variant-numeric: tabular-nums; transition: background .15s, transform .15s; text-shadow: 0 2px 0 rgba(0,0,0,.4); animation: dealin .5s both; }
+  .tile { background: var(--tile); border: 0; color: var(--gold); font-family: var(--font-display); font-weight: 700; font-size: clamp(1.1rem, 4vw, 2.4rem); min-height: 56px; cursor: pointer; font-variant-numeric: tabular-nums; transition: background .15s, transform .15s; text-shadow: 0 2px 0 rgba(0,0,0,.4); animation: dealin .5s both; }
   @keyframes dealin { from { opacity: 0; transform: scale(.6) rotateX(60deg); } to { opacity: 1; transform: none; } }
   .tile:hover, .tile:focus-visible { background: var(--tile-hi); outline: 3px solid var(--gold-2); outline-offset: -3px; transform: scale(1.04); z-index: 1; box-shadow: 0 0 18px rgba(242,193,78,.5); }
   .tile.used { background: var(--tile-used); color: transparent; cursor: default; animation: none; }
@@ -135,14 +149,32 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
   @media (max-width: 480px) { .team { grid-template-columns: 1fr auto; } .team .score { grid-column: 2; } }
+  /* TV / wide screens: everything fits one 16:9 screen, no scrolling */
+  @media (min-width: 960px) and (min-aspect-ratio: 4/3) {
+    body { overflow: hidden; height: 100%; }
+    .wrap { height: 100%; }
+    h1 { font-size: clamp(1.4rem, 2.6vw, 2.2rem); }
+    .sub { display: none; }
+    .tile { font-size: clamp(1.4rem, 4.2vh, 3.2rem); }
+    .cat { font-size: clamp(.8rem, 1.5vw, 1.15rem); }
+    .chip .s { font-size: clamp(1.4rem, 3.4vh, 2.2rem); }
+    .chip .n { font-size: clamp(.9rem, 2vh, 1.2rem); }
+  }
 </style>
 </head>
 <body>
 <canvas id="confetti"></canvas>
 <div class="wrap">
   <header>
-    <h1>Toronto Trivia Board</h1>
-    <p class="sub" id="subline">Pick a board. Each has four categories on its theme plus one wild card.</p>
+    <div class="titleblock">
+      <h1>Toronto Trivia Board</h1>
+      <p class="sub" id="subline">Pick a board. Each has four categories on its theme plus one wild card.</p>
+    </div>
+    <div class="strip" id="scoreStrip" hidden></div>
+    <div class="actions hdr" id="hdrActions" hidden>
+      <button class="small" id="openTeams">Teams</button>
+      <button class="small" id="changeBoard">Change board</button>
+    </div>
   </header>
 
   <section id="pickerView">
@@ -150,15 +182,16 @@
   </section>
 
   <section id="gameView" hidden>
-    <div class="actions" style="margin:0 0 -8px; justify-content: space-between; align-items: center">
-      <span><span class="boardname" id="boardName"></span><span class="round" id="roundBadge" hidden></span></span>
-      <button class="small" id="changeBoard">Change board</button>
-    </div>
-    <div class="board" id="board" style="margin-top:14px"></div>
+    <div class="boardhead"><span class="boardname" id="boardName"></span><span class="round" id="roundBadge" hidden></span></div>
+    <div class="board" id="board"></div>
+  </section>
+</div>
 
-    <div class="row" style="margin-top:22px">
+<div class="overlay" id="teamsOverlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Teams and settings">
+    <div class="row">
       <section class="panel">
-        <h2>Scoreboard</h2>
+        <h2>Teams</h2>
         <div class="teams" id="teams"></div>
         <div class="actions">
           <button class="small" id="addTeam">Add team</button>
@@ -186,7 +219,8 @@
         </div>
       </section>
     </div>
-  </section>
+    <div class="actions" style="justify-content:center; margin-top:16px"><button class="small" id="closeTeams">Back to the board</button></div>
+  </div>
 </div>
 
 <div class="overlay" id="overlay" hidden>
@@ -444,7 +478,7 @@ function pickDailyDoubles(n) {
 /* ---------- views ---------- */
 function showPicker() {
   boardId = null; save();
-  $('gameView').hidden = true; $('pickerView').hidden = false;
+  $('gameView').hidden = true; $('pickerView').hidden = false; $('scoreStrip').hidden = true; $('hdrActions').hidden = true;
   $('subline').textContent = 'Pick a board. Each has four categories on its theme plus one wild card.';
   const p = $('picker'); p.innerHTML = '';
   BOARDS.forEach((b, i) => {
@@ -468,7 +502,7 @@ function startBoard(id) {
   }
   if (!(id in ddByBoard)) ddByBoard[id] = pickDailyDoubles(round() - 1);
   save();
-  $('pickerView').hidden = true; $('gameView').hidden = false;
+  $('pickerView').hidden = true; $('gameView').hidden = false; $('scoreStrip').hidden = false; $('hdrActions').hidden = false;
   $('boardName').textContent = board().title;
   const rb = $('roundBadge'), r = round();
   rb.hidden = r === 1;
@@ -500,7 +534,18 @@ function renderBoard() {
   }
 }
 
+function renderStrip(bumpIndex) {
+  const el = $('scoreStrip'); el.innerHTML = '';
+  const top = Math.max(...teams.map(t => t.score)), leaders = teams.filter(t => t.score === top).length;
+  teams.forEach((t, i) => {
+    const c = document.createElement('div'); c.className = 'chip' + (t.score === top && top > 0 && leaders === 1 ? ' leader' : '') + (i === bumpIndex ? ' bump' : '');
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = t.name;
+    const sc = document.createElement('span'); sc.className = 's' + (t.score < 0 ? ' neg' : ''); sc.textContent = t.score;
+    c.append(n, sc); el.appendChild(c);
+  });
+}
 function renderTeams(bumpIndex) {
+  renderStrip(bumpIndex);
   const el = $('teams'); el.innerHTML = '';
   const top = Math.max(...teams.map(t => t.score));
   teams.forEach((t, i) => {
@@ -561,7 +606,13 @@ function finish() {
 }
 $('cReveal').addEventListener('click', () => { $('cA').hidden = false; });
 $('cClose').addEventListener('click', finish);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('overlay').hidden) finish(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('overlay').hidden) finish(); else if (!$('teamsOverlay').hidden) closeTeams(); } });
+
+/* ---------- teams panel ---------- */
+function openTeams() { $('teamsOverlay').hidden = false; document.querySelector('.wrap').setAttribute('inert', ''); $('closeTeams').focus(); }
+function closeTeams() { $('teamsOverlay').hidden = true; document.querySelector('.wrap').removeAttribute('inert'); if ($('exTools')) { $('exTools').hidden = true; $('exToggle').textContent = 'Show export tools'; $('exOut').value = ''; } $('openTeams').focus(); }
+$('openTeams').addEventListener('click', openTeams);
+$('closeTeams').addEventListener('click', closeTeams);
 
 /* ---------- controls ---------- */
 $('changeBoard').addEventListener('click', showPicker);
